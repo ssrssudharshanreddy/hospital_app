@@ -8,6 +8,8 @@
 #include "core/consultation_manager.h"
 #include "core/system_recovery.h"
 #include "api/server.h"
+#include <cstring>
+#include <cstdlib>
 
 #ifdef _WIN32
 #define EXPORT_API extern "C" __declspec(dllexport)
@@ -75,7 +77,19 @@ int main(int argc, char* argv[]) {
     int port = 8080;
     if (argc > 1) {
         port = std::atoi(argv[1]);
-        if (port <= 0) port = 8080;
+    } else {
+        const char* envPort = std::getenv("PORT");
+        if (envPort && std::strlen(envPort) > 0) {
+            int p = std::atoi(envPort);
+            if (p > 0) {
+                port = p;
+            }
+        }
     }
+
+    if (port <= 0) {
+        port = 8080;
+    }
+
     return run_backend_server(port);
 }

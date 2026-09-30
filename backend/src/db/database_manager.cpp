@@ -1,7 +1,11 @@
 #include "db/database_manager.h"
 #include "utils/logger.h"
 #include "third_party/json.hpp"
+#if defined(_WIN32)
 #include <windows.h>
+#else
+#include <unistd.h>
+#endif
 #include <fstream>
 #include <cstdio>
 #include <chrono>
@@ -28,6 +32,8 @@ static std::string getCurrentTimestamp() {
 DatabaseManager::DatabaseManager() : connected(false), lastError("") {}
 
 bool DatabaseManager::runMongoScript(const std::string& script, std::string& outOutput, std::string& outError) {
+    std::string scriptPath;
+#if defined(_WIN32)
     char tempPath[MAX_PATH];
     if (!GetTempPathA(MAX_PATH, tempPath)) {
         outError = "Failed to determine Windows temporary directory path.";
@@ -40,12 +46,21 @@ bool DatabaseManager::runMongoScript(const std::string& script, std::string& out
         lastError = outError;
         return false;
     }
-    std::string scriptPath = std::string(tempFile) + ".js";
+    scriptPath = std::string(tempFile) + ".js";
+#else
+    static unsigned long long counter = 0;
+    auto nowNs = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    std::string tempFile = "/tmp/hsq_" + std::to_string(nowNs) + "_" + std::to_string(++counter);
+    scriptPath = tempFile + ".js";
+#endif
 
     std::ofstream ofs(scriptPath);
     if (!ofs.is_open()) {
         outError = "Failed to write temporary MongoDB script file: " + scriptPath;
         lastError = outError;
+#if defined(_WIN32)
+        std::remove(tempFile);
+#endif
         return false;
     }
     ofs << "const db = db.getSiblingDB('" << config.databaseName << "');\n";
@@ -70,12 +85,18 @@ bool DatabaseManager::runMongoScript(const std::string& script, std::string& out
 
     std::string cmd = "mongosh \"" + targetDbUri + "\" --quiet --file \"" + scriptPath + "\" 2>&1";
 
+#if defined(_WIN32)
     FILE* pipe = _popen(cmd.c_str(), "r");
+#else
+    FILE* pipe = popen(cmd.c_str(), "r");
+#endif
     if (!pipe) {
         outError = "Failed to spawn mongosh process.";
         lastError = outError;
         std::remove(scriptPath.c_str());
+#if defined(_WIN32)
         std::remove(tempFile);
+#endif
         return false;
     }
 
@@ -85,9 +106,13 @@ bool DatabaseManager::runMongoScript(const std::string& script, std::string& out
         result += buffer;
     }
 
+#if defined(_WIN32)
     int exitCode = _pclose(pipe);
-    std::remove(scriptPath.c_str());
     std::remove(tempFile);
+#else
+    int exitCode = pclose(pipe);
+#endif
+    std::remove(scriptPath.c_str());
 
     if (exitCode != 0) {
         outError = result;
