@@ -1,0 +1,28 @@
+# Environment & secrets
+.env
+*.env
+.env.*
+!.env.example
+
+# C++ Build artifacts
+backend/build/
+build/
+bin/
+obj/
+*.dll
+*.exe
+*.obj
+*.lib
+*.pdb
+*.exp
+*.ilk
+
+# Frontend build & dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Temporary files & logs
+*.log
+*.tmp
+temp/
