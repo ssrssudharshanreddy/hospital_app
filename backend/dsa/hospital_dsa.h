@@ -18,6 +18,7 @@ private:
 
     PatientQueue normalQueues[MAX_DOCTORS];
     PatientQueue emergencyQueues[MAX_DOCTORS];
+    string currentDate;
     int nextTokenNumber;
 
     vector<Registration> consultationHistory;
@@ -67,6 +68,8 @@ public:
     int getPatientCount() const;
     int getDoctorCount() const;
     int getNextTokenNumber() const;
+    string getCurrentDateString() const;
+    void resetDailyTokens(const string& newDate = "");
 
     bool rollbackPatientRegistration(int patientId);
     bool rollbackDoctor(int doctorId);

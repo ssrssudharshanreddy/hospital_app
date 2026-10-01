@@ -31,6 +31,20 @@ static string getCurrentTimestamp() {
     return oss.str();
 }
 
+static string getCurrentDate() {
+    auto now = chrono::system_clock::now();
+    auto in_time_t = chrono::system_clock::to_time_t(now);
+    tm timeInfo;
+#if defined(_WIN32)
+    localtime_s(&timeInfo, &in_time_t);
+#else
+    localtime_r(&in_time_t, &timeInfo);
+#endif
+    ostringstream oss;
+    oss << put_time(&timeInfo, "%Y-%m-%d");
+    return oss.str();
+}
+
 DatabaseManager::DatabaseManager() : connected(false), lastError("") {}
 
 bool DatabaseManager::runMongoScript(const string& script, string& outOutput, string& outError) {
@@ -262,8 +276,10 @@ bool DatabaseManager::loadAllDoctors(vector<Doctor>& outDoctors) {
 
 bool DatabaseManager::saveConsultation(const Registration& reg) {
     if (!connected) return false;
+    string dateStr = reg.createdAt.length() >= 10 ? reg.createdAt.substr(0, 10) : getCurrentDate();
     json doc = {
         {"tokenNo", reg.tokenNo},
+        {"date", dateStr},
         {"patientId", reg.patientId},
         {"patientName", reg.patientName},
         {"doctorId", reg.doctorId},
@@ -276,17 +292,19 @@ bool DatabaseManager::saveConsultation(const Registration& reg) {
         {"updatedAt", reg.updatedAt}
     };
     string script = "db." + config.consultationsCollection +
-                         ".updateOne({tokenNo: " + to_string(reg.tokenNo) + "}, " +
+                         ".updateOne({tokenNo: " + to_string(reg.tokenNo) + ", date: '" + dateStr + "'}, " +
                          "{$set: " + doc.dump() + "}, {upsert: true});\n";
     string out, err;
     return runMongoScript(script, out, err);
 }
 
-bool DatabaseManager::updateConsultationStatus(int tokenNo, const string& status) {
+bool DatabaseManager::updateConsultationStatus(int tokenNo, const string& status, const string& date) {
     if (!connected) return false;
     string ts = getCurrentTimestamp();
+    string targetDate = date.empty() ? ts.substr(0, 10) : date;
     string script = "db." + config.consultationsCollection +
-                         ".updateOne({tokenNo: " + to_string(tokenNo) + "}, " +
+                         ".updateOne({tokenNo: " + to_string(tokenNo) +
+                         ", $or: [{date: '" + targetDate + "'}, {status: 'Waiting'}]}," +
                          "{$set: {status: '" + status + "', updatedAt: '" + ts + "'}});\n";
     string out, err;
     return runMongoScript(script, out, err);
@@ -295,7 +313,7 @@ bool DatabaseManager::updateConsultationStatus(int tokenNo, const string& status
 bool DatabaseManager::loadAllConsultations(vector<Registration>& outConsultations) {
     if (!connected) return false;
     string script = "print(JSON.stringify(db." + config.consultationsCollection +
-                         ".find({}, {_id: 0}).sort({tokenNo: 1}).toArray()));\n";
+                         ".find({}, {_id: 0}).sort({createdAt: 1, tokenNo: 1}).toArray()));\n";
     string out, err;
     if (!runMongoScript(script, out, err)) {
         return false;

@@ -22,7 +22,21 @@ static string getCurrentTimestamp() {
     return oss.str();
 }
 
-HospitalDSA::HospitalDSA() : nextPatientId(101), nextTokenNumber(1) {}
+static string getCurrentDate() {
+    auto now = chrono::system_clock::now();
+    auto in_time_t = chrono::system_clock::to_time_t(now);
+    tm timeInfo;
+#if defined(_WIN32)
+    localtime_s(&timeInfo, &in_time_t);
+#else
+    localtime_r(&in_time_t, &timeInfo);
+#endif
+    ostringstream oss;
+    oss << put_time(&timeInfo, "%Y-%m-%d");
+    return oss.str();
+}
+
+HospitalDSA::HospitalDSA() : nextPatientId(101), nextTokenNumber(1), currentDate(getCurrentDate()) {}
 
 int HospitalDSA::getDoctorIndex(int doctorId) const {
     for (size_t i = 0; i < doctors.size(); ++i) {
@@ -172,6 +186,12 @@ bool HospitalDSA::bookConsultation(int patientId, int doctorId, const string& he
         return false;
     }
 
+    string today = getCurrentDate();
+    if (today != currentDate) {
+        currentDate = today;
+        nextTokenNumber = 1;
+    }
+
     int token = nextTokenNumber++;
 
     Registration reg;
@@ -231,10 +251,10 @@ bool HospitalDSA::processNextPatient(int doctorId, Registration& outProcessed, s
     outProcessed.status = "Completed";
     outProcessed.updatedAt = getCurrentTimestamp();
 
-    for (auto& record : consultationHistory) {
-        if (record.tokenNo == outProcessed.tokenNo) {
-            record.status = "Completed";
-            record.updatedAt = outProcessed.updatedAt;
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+        if (consultationHistory[i].tokenNo == outProcessed.tokenNo && consultationHistory[i].status == "Waiting") {
+            consultationHistory[i].status = "Completed";
+            consultationHistory[i].updatedAt = outProcessed.updatedAt;
             break;
         }
     }
@@ -244,10 +264,19 @@ bool HospitalDSA::processNextPatient(int doctorId, Registration& outProcessed, s
 
 bool HospitalDSA::cancelConsultation(int tokenNo, string& errorMsg) {
     int targetHistoryIndex = -1;
-    for (size_t i = 0; i < consultationHistory.size(); ++i) {
-        if (consultationHistory[i].tokenNo == tokenNo) {
-            targetHistoryIndex = static_cast<int>(i);
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+        if (consultationHistory[i].tokenNo == tokenNo && consultationHistory[i].status == "Waiting") {
+            targetHistoryIndex = i;
             break;
+        }
+    }
+
+    if (targetHistoryIndex == -1) {
+        for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+            if (consultationHistory[i].tokenNo == tokenNo) {
+                targetHistoryIndex = i;
+                break;
+            }
         }
     }
 
@@ -276,9 +305,25 @@ bool HospitalDSA::cancelConsultation(int tokenNo, string& errorMsg) {
 }
 
 bool HospitalDSA::findConsultationByToken(int tokenNo, Registration& outReg) const {
-    for (const auto& c : consultationHistory) {
-        if (c.tokenNo == tokenNo) {
-            outReg = c;
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+        if (consultationHistory[i].tokenNo == tokenNo && consultationHistory[i].status == "Waiting") {
+            outReg = consultationHistory[i];
+            return true;
+        }
+    }
+
+    string today = getCurrentDate();
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+        string cDate = consultationHistory[i].createdAt.length() >= 10 ? consultationHistory[i].createdAt.substr(0, 10) : "";
+        if (consultationHistory[i].tokenNo == tokenNo && cDate == today) {
+            outReg = consultationHistory[i];
+            return true;
+        }
+    }
+
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+        if (consultationHistory[i].tokenNo == tokenNo) {
+            outReg = consultationHistory[i];
             return true;
         }
     }
@@ -288,10 +333,19 @@ bool HospitalDSA::findConsultationByToken(int tokenNo, Registration& outReg) con
 bool HospitalDSA::updateConsultation(int tokenNo, int newDoctorId, bool newEmergency,
                                      const string& newHealthIssue, string& errorMsg) {
     int targetIdx = -1;
-    for (size_t i = 0; i < consultationHistory.size(); ++i) {
-        if (consultationHistory[i].tokenNo == tokenNo) {
-            targetIdx = static_cast<int>(i);
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+        if (consultationHistory[i].tokenNo == tokenNo && consultationHistory[i].status == "Waiting") {
+            targetIdx = i;
             break;
+        }
+    }
+
+    if (targetIdx == -1) {
+        for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+            if (consultationHistory[i].tokenNo == tokenNo) {
+                targetIdx = i;
+                break;
+            }
         }
     }
 
@@ -541,7 +595,20 @@ int HospitalDSA::getDoctorCount() const {
 }
 
 int HospitalDSA::getNextTokenNumber() const {
+    string today = getCurrentDate();
+    if (today != currentDate) {
+        return 1;
+    }
     return nextTokenNumber;
+}
+
+string HospitalDSA::getCurrentDateString() const {
+    return currentDate;
+}
+
+void HospitalDSA::resetDailyTokens(const string& newDate) {
+    currentDate = newDate.empty() ? getCurrentDate() : newDate;
+    nextTokenNumber = 1;
 }
 
 bool HospitalDSA::rollbackPatientRegistration(int patientId) {
@@ -568,7 +635,7 @@ bool HospitalDSA::rollbackDoctor(int doctorId) {
 }
 
 bool HospitalDSA::rollbackConsultation(int tokenNo) {
-    for (size_t i = 0; i < consultationHistory.size(); ++i) {
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
         if (consultationHistory[i].tokenNo == tokenNo) {
             int dIdx = getDoctorIndex(consultationHistory[i].doctorId);
             if (dIdx != -1) {
@@ -589,7 +656,7 @@ bool HospitalDSA::rollbackConsultation(int tokenNo) {
 }
 
 bool HospitalDSA::rollbackCancellation(int tokenNo) {
-    for (size_t i = 0; i < consultationHistory.size(); ++i) {
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
         if (consultationHistory[i].tokenNo == tokenNo) {
             consultationHistory[i].status = "Waiting";
             int dIdx = getDoctorIndex(consultationHistory[i].doctorId);
@@ -607,7 +674,7 @@ bool HospitalDSA::rollbackCancellation(int tokenNo) {
 }
 
 bool HospitalDSA::rollbackProcessing(const Registration& reg) {
-    for (size_t i = 0; i < consultationHistory.size(); ++i) {
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
         if (consultationHistory[i].tokenNo == reg.tokenNo) {
             consultationHistory[i].status = "Waiting";
             consultationHistory[i].updatedAt = reg.updatedAt;
@@ -643,8 +710,12 @@ void HospitalDSA::loadDoctor(const Doctor& doctor) {
 
 void HospitalDSA::loadConsultation(const Registration& reg) {
     consultationHistory.push_back(reg);
-    if (reg.tokenNo >= nextTokenNumber) {
-        nextTokenNumber = reg.tokenNo + 1;
+
+    string regDate = reg.createdAt.length() >= 10 ? reg.createdAt.substr(0, 10) : "";
+    if (regDate == currentDate) {
+        if (reg.tokenNo >= nextTokenNumber) {
+            nextTokenNumber = reg.tokenNo + 1;
+        }
     }
 
     if (reg.status == "Waiting") {
@@ -664,6 +735,7 @@ void HospitalDSA::reset() {
     doctors.clear();
     consultationHistory.clear();
     nextPatientId = 101;
+    currentDate = getCurrentDate();
     nextTokenNumber = 1;
     for (int i = 0; i < MAX_DOCTORS; ++i) {
         normalQueues[i].clear();

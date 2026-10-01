@@ -32,7 +32,7 @@ public:
     bool loadAllDoctors(vector<Doctor>& outDoctors);
 
     bool saveConsultation(const Registration& reg);
-    bool updateConsultationStatus(int tokenNo, const string& status);
+    bool updateConsultationStatus(int tokenNo, const string& status, const string& date = "");
     bool loadAllConsultations(vector<Registration>& outConsultations);
 };
 
