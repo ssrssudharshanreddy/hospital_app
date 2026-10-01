@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
@@ -7,10 +7,12 @@ import Button from '../../components/common/Button';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import SuccessMessage from '../../components/common/SuccessMessage';
 import LoadingState from '../../components/common/LoadingState';
+import { SearchIcon, InfoIcon } from '../../components/common/Icons';
 import api from '../../services/api';
 
 export default function UpdatePatientPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const queryPatientId = searchParams.get('patientId') || '';
 
   const [lookupId, setLookupId] = useState(queryPatientId);
@@ -56,7 +58,7 @@ export default function UpdatePatientPage() {
       }
     } catch (err) {
       setPatient(null);
-      setError(err.message || `Patient ID ${id} not found.`);
+      setError(err.message || `Patient ID #${id} not found.`);
     } finally {
       setLoading(false);
     }
@@ -93,7 +95,7 @@ export default function UpdatePatientPage() {
 
       if (res && res.data) {
         setPatient(res.data);
-        setSuccess(`Patient #${res.data.patientId} information updated successfully in C++ core and MongoDB!`);
+        setSuccess(`Patient #${res.data.patientId} demographics updated successfully.`);
       }
     } catch (err) {
       setError(err.message || 'Failed to update patient information.');
@@ -103,20 +105,19 @@ export default function UpdatePatientPage() {
   };
 
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div>
-        <h2 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#0f172a' }}>
-          Update Patient Information
+        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main, #172033)', letterSpacing: '-0.02em' }}>
+          Update Patient
         </h2>
-        <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
-          Modify patient demographics while strictly preserving permanent Patient ID immutability
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #667085)', marginTop: '0.15rem' }}>
+          Modify patient demographics while preserving permanent Patient ID
         </p>
       </div>
 
       {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
       {success && <SuccessMessage message={success} onDismiss={() => setSuccess(null)} />}
 
-      {/* Lookup Card */}
       <Card title="Find Patient Record">
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
@@ -130,49 +131,47 @@ export default function UpdatePatientPage() {
               style={{ marginBottom: 0 }}
             />
           </div>
-          <Button variant="primary" onClick={() => handleLookup()} loading={loading}>
+          <Button variant="primary" onClick={() => handleLookup()} loading={loading} icon={<SearchIcon size={16} />}>
             Find Record
           </Button>
         </div>
       </Card>
 
       {loading ? (
-        <LoadingState message="Fetching patient record from C++ core..." />
+        <LoadingState message="Fetching patient record..." />
       ) : patient ? (
-        <Card title={`Editing Record: ${patient.patientName} (ID: #${patient.patientId})`}>
+        <Card title={`Editing Patient #${patient.patientId}: ${patient.patientName}`}>
           <form onSubmit={handleUpdate}>
-            {/* Immutability Rule Banner */}
             <div
               style={{
                 padding: '0.75rem 1rem',
-                backgroundColor: '#eff6ff',
-                borderRadius: '6px',
-                border: '1px solid #bfdbfe',
-                fontSize: '0.825rem',
-                color: '#1e40af',
+                backgroundColor: 'var(--primary-subtle, #eff6ff)',
+                borderRadius: 'var(--radius-sm, 6px)',
+                border: '1px solid var(--primary-border, #bfdbfe)',
+                fontSize: '13px',
+                color: 'var(--primary, #2563eb)',
                 marginBottom: '1.25rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
+                gap: '0.65rem',
               }}
             >
-              <span>🔒</span>
+              <InfoIcon size={18} />
               <span>
-                <strong>Patient ID #{patient.patientId} is permanent and read-only.</strong> Demographics can be modified, but Patient ID is immutable across all consultations.
+                <strong>Patient ID #{patient.patientId} is permanent and read-only.</strong> Demographics can be edited below.
               </span>
             </div>
 
-            {/* Read-Only Patient ID Field */}
             <Input
-              label="Permanent Patient ID"
-              value={String(patient.patientId)}
+              label="Patient ID"
+              value={`#${patient.patientId}`}
               readOnly
               disabled
-              helperText="Assigned automatically at registration"
+              helperText="Permanent identifier assigned at registration"
             />
 
             <Input
-              label="Patient Name"
+              label="Full Name"
               name="patientName"
               value={formData.patientName}
               onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
@@ -212,7 +211,7 @@ export default function UpdatePatientPage() {
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               required
               maxLength="10"
-              helperText="Must be a unique 10-digit number"
+              helperText="10-digit mobile number"
             />
 
             <div
@@ -222,16 +221,16 @@ export default function UpdatePatientPage() {
                 gap: '0.75rem',
                 marginTop: '1.5rem',
                 paddingTop: '1rem',
-                borderTop: '1px solid #f1f5f9',
+                borderTop: '1px solid var(--border-light, #f1f5f9)',
               }}
             >
               <Button
                 variant="outline"
                 type="button"
-                onClick={() => handleLookup(patient.patientId)}
+                onClick={() => navigate('/patients')}
                 disabled={updating}
               >
-                Reset Changes
+                Cancel
               </Button>
               <Button variant="primary" type="submit" loading={updating}>
                 Save Changes

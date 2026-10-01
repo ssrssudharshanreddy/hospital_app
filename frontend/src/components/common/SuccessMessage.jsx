@@ -1,4 +1,5 @@
 import React from 'react';
+import { CheckIcon, CloseIcon } from './Icons';
 
 export default function SuccessMessage({
   message,
@@ -14,18 +15,20 @@ export default function SuccessMessage({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0.85rem 1rem',
-        borderRadius: '6px',
-        backgroundColor: '#f0fdf4',
-        border: '1px solid #bbf7d0',
-        color: '#166534',
-        fontSize: '0.875rem',
+        padding: '0.75rem 1rem',
+        borderRadius: 'var(--radius-sm, 6px)',
+        backgroundColor: 'var(--status-completed-bg, #dcfce7)',
+        border: '1px solid var(--status-completed-border, #bbf7d0)',
+        color: 'var(--status-completed-text, #166534)',
+        fontSize: '13.5px',
         marginBottom: '1rem',
         ...style
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-        <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>✅</span>
+        <span style={{ color: 'var(--status-completed, #16a34a)', flexShrink: 0, display: 'flex' }}>
+          <CheckIcon size={18} />
+        </span>
         <div>
           <span style={{ fontWeight: '600' }}>Success: </span>
           <span>{message}</span>
@@ -36,16 +39,17 @@ export default function SuccessMessage({
           onClick={onDismiss}
           aria-label="Dismiss success message"
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             background: 'transparent',
             border: 'none',
-            color: '#166534',
+            color: 'var(--status-completed-text, #166534)',
             cursor: 'pointer',
-            fontSize: '1.1rem',
-            lineHeight: 1,
-            padding: '0 0.25rem',
+            padding: '0.15rem',
           }}
         >
-          &times;
+          <CloseIcon size={14} />
         </button>
       )}
     </div>

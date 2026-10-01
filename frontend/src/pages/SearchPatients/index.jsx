@@ -3,17 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
-import PatientCard from '../../components/patients/PatientCard';
 import PatientDetails from '../../components/patients/PatientDetails';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import LoadingState from '../../components/common/LoadingState';
+import { SearchIcon, QueueIcon, EditIcon } from '../../components/common/Icons';
 import api from '../../services/api';
 
 export default function SearchPatientsPage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState('phone'); // 'phone' or 'id'
+  const [searchType, setSearchType] = useState('phone');
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -59,11 +59,10 @@ export default function SearchPatientsPage() {
       }
     } catch (err) {
       setPatient(null);
-      // User-friendly error message
       if (err.status === 404 || err.message.includes('not found')) {
         setError(`No patient found matching ${searchType === 'phone' ? 'phone' : 'ID'} "${query}".`);
       } else {
-        setError(err.message || 'Error occurred while contacting C++ backend.');
+        setError(err.message || 'Error occurred while contacting backend.');
       }
     } finally {
       setLoading(false);
@@ -78,21 +77,21 @@ export default function SearchPatientsPage() {
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div>
-        <h2 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#0f172a' }}>
-          Search Patients
+        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main, #172033)', letterSpacing: '-0.02em' }}>
+          Search Patient
         </h2>
-        <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
-          Lookup existing records by 10-digit phone number or permanent Patient ID
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #667085)', marginTop: '0.15rem' }}>
+          Lookup registered patients by Patient ID or Phone Number
         </p>
       </div>
 
       <Card>
         <form onSubmit={handleSearch}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.85rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontWeight: searchType === 'phone' ? '600' : '400' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', gap: '1.25rem', fontSize: '13.5px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', fontWeight: searchType === 'phone' ? '600' : '400', color: 'var(--text-main, #172033)' }}>
                 <input
                   type="radio"
                   name="searchType"
@@ -103,10 +102,11 @@ export default function SearchPatientsPage() {
                     setPatient(null);
                     setError(null);
                   }}
+                  style={{ accentColor: 'var(--primary, #2563eb)' }}
                 />
                 Search by Phone Number
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontWeight: searchType === 'id' ? '600' : '400' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', fontWeight: searchType === 'id' ? '600' : '400', color: 'var(--text-main, #172033)' }}>
                 <input
                   type="radio"
                   name="searchType"
@@ -117,6 +117,7 @@ export default function SearchPatientsPage() {
                     setPatient(null);
                     setError(null);
                   }}
+                  style={{ accentColor: 'var(--primary, #2563eb)' }}
                 />
                 Search by Patient ID
               </label>
@@ -137,8 +138,8 @@ export default function SearchPatientsPage() {
                 />
               </div>
 
-              <Button variant="primary" type="submit" loading={loading}>
-                Search Record
+              <Button variant="primary" type="submit" loading={loading} icon={<SearchIcon size={16} />}>
+                Search
               </Button>
               {searched && (
                 <Button variant="outline" type="button" onClick={handleClear}>
@@ -153,12 +154,12 @@ export default function SearchPatientsPage() {
       {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
 
       {loading ? (
-        <LoadingState message="Searching records in C++ core..." />
+        <LoadingState message="Searching patient records..." />
       ) : patient ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '700', color: '#0f172a' }}>
-            Verified Patient Record
-          </h3>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>
+            Patient Found
+          </div>
 
           <PatientDetails patient={patient} />
 
@@ -167,34 +168,35 @@ export default function SearchPatientsPage() {
               display: 'flex',
               justifyContent: 'flex-end',
               gap: '0.75rem',
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--surface, #ffffff)',
               padding: '0.85rem 1rem',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
+              borderRadius: 'var(--radius-md, 8px)',
+              border: '1px solid var(--border, #e4e7ec)',
             }}
           >
             <Button
               variant="outline"
               onClick={() => navigate(`/update-patient?patientId=${patient.patientId}`)}
+              icon={<EditIcon size={14} />}
             >
-              Update Demographics
+              Edit Patient
             </Button>
             <Button
               variant="primary"
               onClick={() => navigate(`/new-consultation?patientId=${patient.patientId}`)}
+              icon={<QueueIcon size={14} />}
             >
-              + Book New Consultation
+              New Consultation
             </Button>
           </div>
         </div>
       ) : searched && !loading ? (
         <EmptyState
-          title="Patient Not Found"
+          title="Patient not found"
           description={`No patient registered in the system with ${searchType === 'phone' ? 'phone number' : 'ID'} "${searchQuery}".`}
-          icon="🔍"
           actionButton={
-            <Button variant="secondary" onClick={() => navigate('/register-patient')}>
-              Register As New Patient
+            <Button variant="primary" onClick={() => navigate('/register-patient')}>
+              Register New Patient
             </Button>
           }
         />

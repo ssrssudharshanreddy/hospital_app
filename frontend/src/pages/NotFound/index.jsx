@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/common/Button';
+import { DashboardIcon } from '../../components/common/Icons';
 
 export default function NotFoundPage() {
   return (
@@ -15,15 +16,19 @@ export default function NotFoundPage() {
         gap: '1rem',
       }}
     >
-      <div style={{ fontSize: '3.5rem', fontWeight: '800', color: '#cbd5e1' }}>404</div>
-      <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>
+      <div style={{ fontSize: '3.5rem', fontWeight: '800', color: 'var(--border-strong, #cbd5e1)', lineHeight: 1 }}>
+        404
+      </div>
+      <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-main, #172033)' }}>
         Page Not Found
       </h2>
-      <p style={{ fontSize: '0.875rem', color: '#64748b', maxWidth: '400px' }}>
-        The route you are looking for does not exist in the Hospital Patient Queue Management System.
+      <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #667085)', maxWidth: '400px' }}>
+        The requested URL was not found in the Hospital Patient Queue Management System.
       </p>
       <Link to="/" style={{ textDecoration: 'none' }}>
-        <Button variant="primary">Return to Dashboard</Button>
+        <Button variant="primary" icon={<DashboardIcon size={16} />}>
+          Return to Dashboard
+        </Button>
       </Link>
     </div>
   );

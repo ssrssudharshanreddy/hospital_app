@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { CloseIcon } from './Icons';
 
 export default function Modal({
   isOpen,
@@ -36,7 +37,7 @@ export default function Modal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.5)',
+        backgroundColor: 'rgba(15, 23, 42, 0.45)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -52,12 +53,12 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '10px',
+          backgroundColor: 'var(--surface, #ffffff)',
+          borderRadius: 'var(--radius-lg, 12px)',
           width: '100%',
           maxWidth,
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-          border: '1px solid #e2e8f0',
+          boxShadow: 'var(--shadow-lg, 0 12px 16px -4px rgba(16, 24, 40, 0.08))',
+          border: '1px solid var(--border, #e4e7ec)',
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '90vh',
@@ -65,18 +66,18 @@ export default function Modal({
           animation: 'fadeIn 0.15s ease-out',
         }}
       >
-        {/* Header */}
         <div
           style={{
             padding: '1rem 1.25rem',
-            borderBottom: '1px solid #e2e8f0',
+            borderBottom: '1px solid var(--border, #e4e7ec)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            backgroundColor: 'var(--surface, #ffffff)'
           }}
         >
           {title && (
-            <h3 id="modal-title" style={{ fontSize: '1.05rem', fontWeight: '700', color: '#0f172a' }}>
+            <h3 id="modal-title" style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-main, #172033)' }}>
               {title}
             </h3>
           )}
@@ -84,34 +85,34 @@ export default function Modal({
             onClick={onClose}
             aria-label="Close dialog"
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               background: 'transparent',
               border: 'none',
-              fontSize: '1.25rem',
-              lineHeight: 1,
-              color: '#64748b',
+              color: 'var(--text-secondary, #667085)',
               cursor: 'pointer',
-              padding: '0.25rem 0.5rem',
-              borderRadius: '4px',
+              padding: '0.35rem',
+              borderRadius: 'var(--radius-xs, 4px)',
+              transition: 'background-color var(--transition-fast, 0.15s ease)'
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-muted, #f1f5f9)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            &times;
+            <CloseIcon size={18} />
           </button>
         </div>
 
-        {/* Content */}
         <div style={{ padding: '1.25rem', overflowY: 'auto' }}>
           {children}
         </div>
 
-        {/* Footer */}
         {footer && (
           <div
             style={{
               padding: '0.85rem 1.25rem',
-              borderTop: '1px solid #e2e8f0',
-              backgroundColor: '#f8fafc',
+              borderTop: '1px solid var(--border, #e4e7ec)',
+              backgroundColor: 'var(--surface-alt, #f8fafc)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-end',

@@ -4,7 +4,7 @@ export default function PatientDetails({ patient, style = {} }) {
   if (!patient) return null;
 
   const fields = [
-    { label: 'Patient ID', value: patient.patientId, highlight: true },
+    { label: 'Patient ID', value: `#${patient.patientId}`, highlight: true },
     { label: 'Patient Name', value: patient.patientName },
     { label: 'Age', value: `${patient.age} yrs` },
     { label: 'Gender', value: patient.gender },
@@ -14,15 +14,22 @@ export default function PatientDetails({ patient, style = {} }) {
   return (
     <div
       style={{
-        backgroundColor: '#f8fafc',
-        borderRadius: '8px',
-        border: '1px solid #e2e8f0',
+        backgroundColor: 'var(--surface-alt, #f8fafc)',
+        borderRadius: 'var(--radius-md, 8px)',
+        border: '1px solid var(--border, #e4e7ec)',
         padding: '1rem 1.25rem',
         ...style
       }}
     >
-      <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
-        Verified Patient Record (Read-Only)
+      <div style={{
+        fontSize: '11px',
+        fontWeight: '600',
+        color: 'var(--text-secondary, #667085)',
+        textTransform: 'uppercase',
+        marginBottom: '0.75rem',
+        letterSpacing: '0.04em'
+      }}>
+        Patient Record (Verified)
       </div>
       <div
         style={{
@@ -33,14 +40,14 @@ export default function PatientDetails({ patient, style = {} }) {
       >
         {fields.map((f, idx) => (
           <div key={idx}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.2rem' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)', marginBottom: '0.2rem' }}>
               {f.label}
             </div>
             <div
               style={{
-                fontSize: '0.95rem',
-                fontWeight: f.highlight ? '700' : '600',
-                color: f.highlight ? '#1d4ed8' : '#0f172a',
+                fontSize: '14px',
+                fontWeight: f.highlight ? '700' : '500',
+                color: f.highlight ? 'var(--primary, #2563eb)' : 'var(--text-main, #172033)',
               }}
             >
               {f.value || '—'}

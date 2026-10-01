@@ -1,7 +1,8 @@
 import React from 'react';
+import { SpinnerIcon } from './Icons';
 
 export default function LoadingState({
-  message = 'Loading data from C++ core...',
+  message = 'Loading patient queue data...',
   minHeight = '180px'
 }) {
   return (
@@ -13,26 +14,14 @@ export default function LoadingState({
         justifyContent: 'center',
         minHeight,
         gap: '0.75rem',
-        color: '#64748b',
+        color: 'var(--text-secondary, #667085)',
         padding: '1.5rem',
       }}
     >
-      <div
-        style={{
-          width: '32px',
-          height: '32px',
-          border: '3px solid #e2e8f0',
-          borderTopColor: '#2563eb',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }}
-      />
-      <p style={{ fontSize: '0.875rem', fontWeight: '500' }}>{message}</p>
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      <div style={{ color: 'var(--primary, #2563eb)' }}>
+        <SpinnerIcon size={28} />
+      </div>
+      <p style={{ fontSize: '13px', fontWeight: '500' }}>{message}</p>
     </div>
   );
 }

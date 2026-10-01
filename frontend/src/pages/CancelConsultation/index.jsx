@@ -3,9 +3,11 @@ import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import ConsultationStatusBadge from '../../components/consultations/ConsultationStatusBadge';
+import Badge from '../../components/common/Badge';
 import ConfirmationDialog from '../../components/common/ConfirmationDialog';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import SuccessMessage from '../../components/common/SuccessMessage';
+import { SearchIcon, AlertIcon } from '../../components/common/Icons';
 import api from '../../services/api';
 
 export default function CancelConsultationPage() {
@@ -51,9 +53,8 @@ export default function CancelConsultationPage() {
       const res = await api.cancelConsultation(consultation.tokenNo);
       if (res && res.data) {
         setSuccess(
-          `Token #${consultation.tokenNo} was cancelled successfully. It has been removed from active queues and will NEVER be reused.`
+          `Token #${consultation.tokenNo} was cancelled successfully. It has been removed from the queue and its token will not be reused.`
         );
-        // Refresh record
         const updated = await api.getConsultationByToken(consultation.tokenNo);
         if (updated && updated.data) {
           setConsultation(updated.data);
@@ -69,13 +70,13 @@ export default function CancelConsultationPage() {
   const isWaiting = consultation?.status === 'Waiting';
 
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div>
-        <h2 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#0f172a' }}>
-          Cancel Waiting Consultation
+        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main, #172033)', letterSpacing: '-0.02em' }}>
+          Cancel Consultation
         </h2>
-        <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
-          Remove active consultation from queue with confirmation and non-reuse token preservation
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #667085)', marginTop: '0.15rem' }}>
+          Search for an active consultation and cancel it from the queue
         </p>
       </div>
 
@@ -97,8 +98,8 @@ export default function CancelConsultationPage() {
                 style={{ marginBottom: 0 }}
               />
             </div>
-            <Button variant="primary" type="submit" loading={loading}>
-              Lookup Token
+            <Button variant="primary" type="submit" loading={loading} icon={<SearchIcon size={16} />}>
+              Find Token
             </Button>
           </div>
         </form>
@@ -107,10 +108,10 @@ export default function CancelConsultationPage() {
       {consultation && (
         <Card title={`Consultation Record: Token #${consultation.tokenNo}`}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
               <div>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Patient:</span>
-                <h4 style={{ fontSize: '1.05rem', fontWeight: '700', color: '#0f172a' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>Patient:</span>
+                <h4 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>
                   {consultation.patientName} (ID: #{consultation.patientId})
                 </h4>
               </div>
@@ -123,41 +124,54 @@ export default function CancelConsultationPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
                 gap: '0.75rem',
-                backgroundColor: '#f8fafc',
-                padding: '0.85rem',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0',
-                fontSize: '0.85rem',
+                backgroundColor: 'var(--surface-alt, #f8fafc)',
+                padding: '0.85rem 1rem',
+                borderRadius: 'var(--radius-sm, 6px)',
+                border: '1px solid var(--border, #e4e7ec)',
+                fontSize: '13px',
               }}
             >
               <div>
-                <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Doctor:</span>
-                <p style={{ fontWeight: '600' }}>{consultation.doctorName}</p>
+                <span style={{ color: 'var(--text-secondary, #667085)', fontSize: '12px' }}>Doctor:</span>
+                <p style={{ fontWeight: '600', color: 'var(--text-main, #172033)', marginTop: '0.15rem' }}>{consultation.doctorName}</p>
               </div>
               <div>
-                <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Room:</span>
-                <p style={{ fontWeight: '600' }}>Room {consultation.roomNo}</p>
+                <span style={{ color: 'var(--text-secondary, #667085)', fontSize: '12px' }}>Room:</span>
+                <p style={{ fontWeight: '600', color: 'var(--text-main, #172033)', marginTop: '0.15rem' }}>Room {consultation.roomNo}</p>
               </div>
               <div>
-                <span style={{ color: '#64748b', fontSize: '0.75rem' }}>Health Issue:</span>
-                <p style={{ fontWeight: '600' }}>{consultation.healthIssue}</p>
+                <span style={{ color: 'var(--text-secondary, #667085)', fontSize: '12px' }}>Priority:</span>
+                <div style={{ marginTop: '0.15rem' }}>
+                  <Badge variant={consultation.emergency ? 'emergency' : 'normal'} size="sm">
+                    {consultation.emergency ? 'Emergency' : 'Normal'}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-secondary, #667085)', fontSize: '12px' }}>Health Issue:</span>
+                <p style={{ fontWeight: '500', color: 'var(--text-main, #172033)', marginTop: '0.15rem' }}>{consultation.healthIssue}</p>
               </div>
             </div>
 
-            {/* Academic Rule Box */}
             <div
               style={{
                 padding: '0.75rem 1rem',
-                backgroundColor: '#fffbeb',
-                borderRadius: '6px',
-                border: '1px solid #fde68a',
-                fontSize: '0.8rem',
-                color: '#92400e',
+                backgroundColor: 'var(--status-waiting-bg, #fef3c7)',
+                borderRadius: 'var(--radius-sm, 6px)',
+                border: '1px solid var(--status-waiting-border, #fde68a)',
+                fontSize: '12.5px',
+                color: 'var(--status-waiting-text, #92400e)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
               }}
             >
-              ⚠️ <strong>Token Non-Reuse Policy:</strong> When a consultation is cancelled, its token is permanently retired. The next patient in line advances forward automatically, and this token will never be reassigned.
+              <AlertIcon size={16} />
+              <span>
+                <strong>Token Retirement Policy:</strong> Once cancelled, this consultation is removed from the active queue and its token will not be reassigned. The historical record remains available.
+              </span>
             </div>
 
             {isWaiting ? (
@@ -167,12 +181,12 @@ export default function CancelConsultationPage() {
                   onClick={() => setShowConfirm(true)}
                   disabled={cancelling}
                 >
-                  Cancel This Consultation
+                  Cancel Consultation
                 </Button>
               </div>
             ) : (
-              <div style={{ textAlign: 'right', fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic' }}>
-                This consultation is already {consultation.status} and cannot be cancelled.
+              <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary, #667085)', fontStyle: 'italic' }}>
+                This consultation is {consultation.status} and cannot be cancelled.
               </div>
             )}
           </div>
@@ -181,9 +195,10 @@ export default function CancelConsultationPage() {
 
       <ConfirmationDialog
         isOpen={showConfirm}
-        title="Confirm Cancellation"
-        message={`Are you sure you want to cancel Token #${consultation?.tokenNo} (${consultation?.patientName})? This action cannot be undone.`}
-        confirmText="Confirm Cancellation"
+        title="Cancel Consultation"
+        message="Are you sure you want to cancel this consultation? This removes the consultation from the active queue. The historical record remains available."
+        confirmText="Cancel Consultation"
+        cancelText="Keep Consultation"
         confirmVariant="danger"
         onConfirm={handleCancelConfirm}
         onCancel={() => setShowConfirm(false)}

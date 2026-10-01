@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { MenuIcon, PulseIcon } from '../common/Icons';
 
 export default function Header({ backendConnected, onToggleSidebar }) {
-  const [time, setTime] = useState(new Date().toLocaleTimeString());
+  const [currentDate, setCurrentDate] = useState('');
+  const [currentTime, setCurrentTime] = useState('');
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date().toLocaleTimeString());
-    }, 1000);
+    const updateDateTime = () => {
+      const now = new Date();
+      setCurrentDate(now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
+      setCurrentTime(now.toLocaleTimeString());
+    };
+    updateDateTime();
+    const timer = setInterval(updateDateTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -17,107 +23,105 @@ export default function Header({ backendConnected, onToggleSidebar }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0.85rem 1.5rem',
-        backgroundColor: '#ffffff',
-        borderBottom: '1px solid #e2e8f0',
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        padding: '0.75rem 1.5rem',
+        backgroundColor: 'var(--surface, #ffffff)',
+        borderBottom: '1px solid var(--border, #e4e7ec)',
+        boxShadow: 'var(--shadow-xs, 0 1px 2px rgba(16, 24, 40, 0.04))',
         position: 'sticky',
         top: 0,
-        zIndex: 100,
+        zIndex: 60,
+        flexShrink: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            aria-label="Toggle navigation"
+            aria-label="Toggle navigation menu"
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               background: 'transparent',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              padding: '0.35rem 0.5rem',
+              border: '1px solid var(--border, #e4e7ec)',
+              borderRadius: 'var(--radius-sm, 6px)',
+              padding: '0.4rem',
               cursor: 'pointer',
-              color: '#334155',
+              color: 'var(--text-main, #172033)',
             }}
           >
-            ☰
+            <MenuIcon size={18} />
           </button>
         )}
 
-        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div
             style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '8px',
-              backgroundColor: '#2563eb',
+              width: '32px',
+              height: '32px',
+              borderRadius: 'var(--radius-sm, 6px)',
+              backgroundColor: 'var(--primary, #2563eb)',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontWeight: '700',
-              fontSize: '1.2rem',
             }}
           >
-            +
+            <PulseIcon size={18} color="#ffffff" />
           </div>
           <div>
-            <h1 style={{ fontSize: '1.05rem', fontWeight: '700', color: '#0f172a', margin: 0, lineHeight: 1.2 }}>
-              Hospital Patient Queue Management System
+            <h1 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-main, #172033)', margin: 0, lineHeight: 1.2 }}>
+              Hospital Patient Queue
             </h1>
-            <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>
-              C++ DSA Backend Core &bull; React Operator Desk
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #667085)', margin: 0 }}>
+              Reception Desk
             </p>
           </div>
         </Link>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-        {/* Backend Connectivity Status Badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '0.45rem',
-            fontSize: '0.8rem',
+            fontSize: '0.78rem',
             fontWeight: '600',
-            padding: '0.35rem 0.75rem',
-            borderRadius: '9999px',
-            backgroundColor: backendConnected ? '#f0fdf4' : '#fef2f2',
-            border: `1px solid ${backendConnected ? '#bbf7d0' : '#fecaca'}`,
-            color: backendConnected ? '#16a34a' : '#dc2626',
+            padding: '0.25rem 0.65rem',
+            borderRadius: 'var(--radius-full, 9999px)',
+            backgroundColor: backendConnected ? 'var(--status-completed-bg, #dcfce7)' : 'var(--status-emergency-bg, #fee2e2)',
+            border: `1px solid ${backendConnected ? 'var(--status-completed-border, #bbf7d0)' : 'var(--status-emergency-border, #fecaca)'}`,
+            color: backendConnected ? 'var(--status-completed-text, #166534)' : 'var(--status-emergency-text, #991b1b)',
           }}
         >
           <span
             style={{
-              width: '8px',
-              height: '8px',
+              width: '7px',
+              height: '7px',
               borderRadius: '50%',
-              backgroundColor: backendConnected ? '#16a34a' : '#dc2626',
+              backgroundColor: backendConnected ? 'var(--status-completed, #16a34a)' : 'var(--status-emergency, #dc2626)',
             }}
           />
-          {backendConnected ? 'C++ Core Connected' : 'C++ Core Disconnected'}
+          {backendConnected ? 'System Online' : 'System Offline'}
         </div>
 
-        {/* Live Clock */}
-        <div style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '500' }}>
-          {time}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary, #667085)' }}>
+          <span>{currentDate}</span>
+          <span>&bull;</span>
+          <span style={{ fontWeight: '500', color: 'var(--text-main, #172033)' }}>{currentTime}</span>
         </div>
 
-        {/* Desk Badge */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            padding: '0.3rem 0.75rem',
-            backgroundColor: '#f1f5f9',
-            borderRadius: '6px',
-            fontSize: '0.8rem',
-            fontWeight: '700',
-            color: '#1e293b',
+            padding: '0.25rem 0.65rem',
+            backgroundColor: 'var(--surface-muted, #f1f5f9)',
+            borderRadius: 'var(--radius-sm, 6px)',
+            fontSize: '0.75rem',
+            fontWeight: '600',
+            color: 'var(--text-secondary, #667085)',
           }}
         >
           Operator Desk

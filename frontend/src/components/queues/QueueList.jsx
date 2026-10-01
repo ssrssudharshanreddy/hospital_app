@@ -2,24 +2,23 @@ import React from 'react';
 import QueueItem from './QueueItem';
 import Badge from '../common/Badge';
 import ConsultationStatusBadge from '../consultations/ConsultationStatusBadge';
+import { PulseIcon, AlertIcon, QueueIcon } from '../common/Icons';
 
 export default function QueueList({
   currentConsultation = null,
   emergencyQueue = [],
   normalQueue = [],
   nextPatient,
-  effectiveProcessingOrder = '',
   totalWaiting = 0,
   style = {}
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', ...style }}>
-      {/* SECTION: CURRENTLY CONSULTING */}
       <div
         style={{
-          backgroundColor: currentConsultation ? '#faf5ff' : '#f8fafc',
-          borderRadius: '8px',
-          border: currentConsultation ? '1.5px solid #ddd6fe' : '1px solid #e2e8f0',
+          backgroundColor: currentConsultation ? 'var(--status-consulting-bg, #eef2ff)' : 'var(--surface-alt, #f8fafc)',
+          borderRadius: 'var(--radius-md, 8px)',
+          border: currentConsultation ? '1px solid var(--status-consulting-border, #c7d2fe)' : '1px solid var(--border, #e4e7ec)',
           padding: '1rem 1.25rem',
           display: 'flex',
           flexDirection: 'column',
@@ -28,16 +27,18 @@ export default function QueueList({
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.1rem' }}>🩺</span>
-            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: currentConsultation ? '#6b21a8' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ color: currentConsultation ? 'var(--status-consulting-text, #3730a3)' : 'var(--text-secondary, #667085)', display: 'flex' }}>
+              <PulseIcon size={18} />
+            </span>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: currentConsultation ? 'var(--status-consulting-text, #3730a3)' : 'var(--text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               CURRENTLY CONSULTING
             </span>
           </div>
           {currentConsultation ? (
             <ConsultationStatusBadge status="In Consultation" />
           ) : (
-            <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
-              No patient currently inside doctor's room
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary, #667085)', fontStyle: 'italic' }}>
+              No patient currently inside consultation room
             </span>
           )}
         </div>
@@ -48,10 +49,10 @@ export default function QueueList({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--surface, #ffffff)',
               padding: '0.85rem 1rem',
-              borderRadius: '6px',
-              border: '1px solid #e9d5ff',
+              borderRadius: 'var(--radius-sm, 6px)',
+              border: '1px solid var(--status-consulting-border, #c7d2fe)',
               flexWrap: 'wrap',
               gap: '0.75rem',
             }}
@@ -59,22 +60,22 @@ export default function QueueList({
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div
                 style={{
-                  fontFamily: 'monospace',
-                  fontSize: '1.35rem',
-                  fontWeight: '800',
-                  padding: '0.25rem 0.65rem',
-                  borderRadius: '6px',
-                  backgroundColor: '#7c3aed',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  backgroundColor: 'var(--status-consulting, #4f46e5)',
                   color: '#ffffff',
                 }}
               >
                 Token {currentConsultation.formattedToken || String(currentConsultation.tokenNo).padStart(3, '0')}
               </div>
               <div>
-                <h4 style={{ fontSize: '1.05rem', fontWeight: '700', color: '#0f172a' }}>
+                <h4 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>
                   {currentConsultation.patientName}
                 </h4>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.15rem' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary, #667085)', marginTop: '0.15rem' }}>
                   Patient #{currentConsultation.patientId} &bull; Chief Issue: {currentConsultation.healthIssue || 'General consultation'}
                 </div>
               </div>
@@ -88,31 +89,18 @@ export default function QueueList({
         )}
       </div>
 
-      {/* SECTION: WAITING */}
       <div>
-        <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            WAITING QUEUE
-          </span>
-        </div>
-
-        {/* Summary Header */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.85rem 1rem',
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: '700', color: '#1e293b' }}>
-              Waiting Status:
+        <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ color: 'var(--text-secondary, #667085)', display: 'flex' }}>
+              <QueueIcon size={18} />
             </span>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main, #172033)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              WAITING QUEUE
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Badge variant={totalWaiting > 0 ? 'waiting' : 'default'}>
               {totalWaiting} Total Waiting
             </Badge>
@@ -123,50 +111,46 @@ export default function QueueList({
               {normalQueue.length} Normal
             </Badge>
           </div>
+        </div>
 
-          {nextPatient && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
-              <span style={{ color: '#64748b' }}>Next in turn to be called:</span>
+        {nextPatient && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.65rem 1rem',
+              backgroundColor: 'var(--surface, #ffffff)',
+              borderRadius: 'var(--radius-sm, 6px)',
+              border: '1px solid var(--border, #e4e7ec)',
+              marginBottom: '0.85rem',
+              fontSize: '13px',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <span style={{ color: 'var(--text-secondary, #667085)' }}>Next in line to be examined:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span
                 style={{
-                  fontFamily: 'monospace',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                   fontWeight: '700',
                   padding: '0.15rem 0.5rem',
-                  borderRadius: '4px',
-                  backgroundColor: nextPatient.emergency ? '#dc2626' : '#2563eb',
+                  borderRadius: 'var(--radius-xs, 4px)',
+                  backgroundColor: nextPatient.emergency ? 'var(--status-emergency, #dc2626)' : 'var(--primary, #2563eb)',
                   color: '#ffffff',
                 }}
               >
                 Token {nextPatient.formattedToken || String(nextPatient.tokenNo).padStart(3, '0')}
               </span>
+              <span style={{ fontWeight: '600', color: 'var(--text-main, #172033)' }}>
+                {nextPatient.patientName || `Patient #${nextPatient.patientId}`}
+              </span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Effective Processing Order from C++ Backend */}
-      {effectiveProcessingOrder && (
-        <div
-          style={{
-            padding: '0.65rem 1rem',
-            backgroundColor: '#f1f5f9',
-            borderRadius: '6px',
-            border: '1px solid #e2e8f0',
-            fontSize: '0.8rem',
-            color: '#334155',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <span style={{ fontWeight: '700', color: '#0f172a' }}>C++ Processing Order:</span>
-          <span style={{ fontFamily: 'monospace', color: '#2563eb', fontWeight: '600' }}>
-            {effectiveProcessingOrder}
-          </span>
-        </div>
-      )}
-
-      {/* Grid of Queues: Emergency & Normal */}
       <div
         style={{
           display: 'grid',
@@ -174,28 +158,29 @@ export default function QueueList({
           gap: '1rem',
         }}
       >
-        {/* Emergency Queue (Priority) */}
         <div
           style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            border: '1px solid #fecaca',
+            backgroundColor: 'var(--surface, #ffffff)',
+            borderRadius: 'var(--radius-md, 8px)',
+            border: '1px solid var(--status-emergency-border, #fecaca)',
             overflow: 'hidden',
           }}
         >
           <div
             style={{
               padding: '0.75rem 1rem',
-              backgroundColor: '#fef2f2',
-              borderBottom: '1px solid #fecaca',
+              backgroundColor: 'var(--status-emergency-bg, #fee2e2)',
+              borderBottom: '1px solid var(--status-emergency-border, #fecaca)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1rem' }}>🚨</span>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: '700', color: '#991b1b' }}>
+              <span style={{ color: 'var(--status-emergency, #dc2626)', display: 'flex' }}>
+                <AlertIcon size={16} />
+              </span>
+              <h4 style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--status-emergency-text, #991b1b)' }}>
                 Emergency Queue
               </h4>
             </div>
@@ -205,7 +190,7 @@ export default function QueueList({
           </div>
           <div style={{ padding: '0.75rem', minHeight: '120px' }}>
             {emergencyQueue.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', padding: '1.5rem 0' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary, #667085)', fontSize: '13px', padding: '1.5rem 0' }}>
                 No emergency patients waiting.
               </div>
             ) : (
@@ -221,29 +206,30 @@ export default function QueueList({
           </div>
         </div>
 
-        {/* Normal Queue (FIFO) */}
         <div
           style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            border: '1px solid #bae6fd',
+            backgroundColor: 'var(--surface, #ffffff)',
+            borderRadius: 'var(--radius-md, 8px)',
+            border: '1px solid var(--primary-border, #bfdbfe)',
             overflow: 'hidden',
           }}
         >
           <div
             style={{
               padding: '0.75rem 1rem',
-              backgroundColor: '#f0f9ff',
-              borderBottom: '1px solid #bae6fd',
+              backgroundColor: 'var(--primary-subtle, #eff6ff)',
+              borderBottom: '1px solid var(--primary-border, #bfdbfe)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '1rem' }}>👥</span>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: '700', color: '#0369a1' }}>
-                Normal Queue (FIFO)
+              <span style={{ color: 'var(--primary, #2563eb)', display: 'flex' }}>
+                <QueueIcon size={16} />
+              </span>
+              <h4 style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--primary, #2563eb)' }}>
+                Normal Queue
               </h4>
             </div>
             <Badge variant="normal" size="sm">
@@ -252,7 +238,7 @@ export default function QueueList({
           </div>
           <div style={{ padding: '0.75rem', minHeight: '120px' }}>
             {normalQueue.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', padding: '1.5rem 0' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary, #667085)', fontSize: '13px', padding: '1.5rem 0' }}>
                 No normal consultations waiting.
               </div>
             ) : (

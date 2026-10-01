@@ -1,16 +1,5 @@
-// ==============================================================
-// Hospital Patient Queue Management System - API Client Service
-// Strictly communicates via HTTP/REST JSON with C++ Backend
-// Note: Frontend NEVER connects directly to MongoDB
-// ==============================================================
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
-/**
- * Universal request wrapper for C++ REST API
- * Automatically handles JSON parsing, uniform envelope unwrapping,
- * and user-friendly error formatting.
- */
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   const config = {
@@ -37,7 +26,7 @@ async function request(endpoint, options = {}) {
     return result;
   } catch (error) {
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      const networkError = new Error('Unable to connect to C++ backend server. Ensure backend is running.');
+      const networkError = new Error('Unable to connect to hospital queue backend. Ensure backend server is running.');
       networkError.status = 503;
       throw networkError;
     }
@@ -46,11 +35,9 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // 1. Health & Status
   getHealth: () => request('/health'),
   getStatus: () => request('/status'),
 
-  // 2. Patient Management
   registerPatient: (patientData) =>
     request('/patients', {
       method: 'POST',
@@ -64,20 +51,14 @@ export const api = {
       body: JSON.stringify(patientData),
     }),
   getPatients: () => request('/patients'),
-  getAllPatients: () => request('/patients'), // convenient alias
-
-  // 3. Doctor Management
   getDoctors: () => request('/doctors'),
-  getAllDoctors: () => request('/doctors'), // convenient alias
-  getDoctor: (id) => request(`/doctors/${id}`),
-  getDoctorById: (id) => request(`/doctors/${id}`), // convenient alias
+  getDoctorById: (id) => request(`/doctors/${id}`),
   addDoctor: (doctorData) =>
     request('/doctors', {
       method: 'POST',
       body: JSON.stringify(doctorData),
     }),
 
-  // 4. Consultation Workflow
   registerConsultation: (consultationData) =>
     request('/consultations', {
       method: 'POST',
@@ -91,7 +72,6 @@ export const api = {
     const queryString = query.toString() ? `?${query.toString()}` : '';
     return request(`/consultations${queryString}`);
   },
-  getAllConsultations: (params) => api.getConsultations(params), // alias
   getConsultationByToken: (token) => request(`/consultations/${token}`),
   updateConsultation: (token, updateData) =>
     request(`/consultations/${token}`, {
@@ -103,7 +83,6 @@ export const api = {
       method: 'POST',
     }),
 
-  // 5. Queue Engine (C++ Real-Time DSA)
   getDoctorQueue: (doctorId) => request(`/queues/${doctorId}`),
   processNextPatient: (doctorId) =>
     request(`/queues/${doctorId}/process`, {
@@ -114,7 +93,6 @@ export const api = {
       method: 'POST',
     }),
 
-  // 6. Dashboard Metrics
   getDashboardStats: () => request('/dashboard/stats'),
 };
 

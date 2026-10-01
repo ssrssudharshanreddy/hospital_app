@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 
-// Page Components
 import DashboardPage from './pages/Dashboard';
+import PatientsPage from './pages/Patients';
 import RegisterPatientPage from './pages/RegisterPatient';
 import SearchPatientsPage from './pages/SearchPatients';
 import NewConsultationPage from './pages/NewConsultation';
@@ -40,6 +40,7 @@ export default function App() {
       <Layout backendConnected={backendConnected}>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/patients" element={<PatientsPage />} />
           <Route path="/register-patient" element={<RegisterPatientPage />} />
           <Route path="/search-patients" element={<SearchPatientsPage />} />
           <Route path="/new-consultation" element={<NewConsultationPage />} />

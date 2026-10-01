@@ -3,14 +3,25 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
+import Table from '../../components/common/Table';
 import LoadingState from '../../components/common/LoadingState';
 import ErrorMessage from '../../components/common/ErrorMessage';
-import EmptyState from '../../components/common/EmptyState';
+import ConsultationStatusBadge from '../../components/consultations/ConsultationStatusBadge';
+import {
+  RefreshIcon,
+  RegisterIcon,
+  QueueIcon,
+  SearchIcon,
+  PulseIcon,
+  DoctorIcon,
+  ClockIcon,
+} from '../../components/common/Icons';
 import api from '../../services/api';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
-  const [status, setStatus] = useState(null);
+  const [activeConsultations, setActiveConsultations] = useState([]);
+  const [recentConsultations, setRecentConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,29 +29,33 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      const [statsRes, statusRes] = await Promise.all([
-        api.getDashboardStats().catch((err) => {
-          console.warn('Dashboard stats error:', err);
-          return null;
-        }),
-        api.getStatus().catch((err) => {
-          console.warn('Status error:', err);
-          return null;
-        }),
+
+      const [statsRes, inConsultationRes, recentRes] = await Promise.all([
+        api.getDashboardStats().catch(() => null),
+        api.getConsultations({ status: 'In Consultation' }).catch(() => null),
+        api.getConsultations().catch(() => null),
       ]);
 
       if (statsRes && statsRes.data) {
         setStats(statsRes.data);
       }
-      if (statusRes && statusRes.data) {
-        setStatus(statusRes.data);
+      if (inConsultationRes && inConsultationRes.data && inConsultationRes.data.consultations) {
+        setActiveConsultations(inConsultationRes.data.consultations);
+      } else {
+        setActiveConsultations([]);
+      }
+      if (recentRes && recentRes.data && recentRes.data.consultations) {
+        const sorted = [...recentRes.data.consultations].reverse().slice(0, 6);
+        setRecentConsultations(sorted);
+      } else {
+        setRecentConsultations([]);
       }
 
-      if (!statsRes && !statusRes) {
-        throw new Error('Unable to connect to C++ backend. Ensure hospital_queue_backend is running.');
+      if (!statsRes && !recentRes) {
+        throw new Error('Unable to connect to hospital queue backend. Ensure backend is running.');
       }
     } catch (err) {
-      setError(err.message || 'Failed to fetch live operational telemetry.');
+      setError(err.message || 'Failed to fetch operational data.');
     } finally {
       setLoading(false);
     }
@@ -48,351 +63,541 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 10000); // 10s live polling
+    const interval = setInterval(fetchDashboardData, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  const totalWaiting = stats?.totalWaiting ?? status?.waitingConsultations ?? 0;
+  const totalWaiting = stats?.totalWaiting ?? 0;
   const emergencyWaiting = stats?.emergencyWaiting ?? 0;
-  const normalWaiting = stats?.normalWaiting ?? 0;
-  const inConsultation = stats?.inConsultation ?? stats?.inConsultationCount ?? 0;
-  const doctorCount = stats?.doctorCount ?? status?.activeDoctors ?? 0;
-  const patientCount = stats?.patientCount ?? status?.totalPatients ?? 0;
-  const completedCount = stats?.completedConsultations ?? status?.completedConsultations ?? 0;
-  const cancelledCount = stats?.cancelledConsultations ?? status?.cancelledConsultations ?? 0;
-  const nextTokenStr = stats?.formattedNextToken ?? status?.formattedNextToken ?? '001';
+  const inConsultation = stats?.inConsultation ?? activeConsultations.length;
+  const doctorCount = stats?.doctorCount ?? 0;
+  const doctorQueueSummary = stats?.doctorQueueSummary ?? [];
 
-  const isDbConnected = status?.databaseConnected ?? false;
-  const isBackendRunning = status?.backendStatus === 'running' || !!stats;
+  const doctorColumns = [
+    {
+      header: 'Doctor',
+      key: 'doctorName',
+      render: (d) => (
+        <div>
+          <div style={{ fontWeight: '600', color: 'var(--text-main, #172033)' }}>{d.doctorName}</div>
+          <div style={{ fontSize: '12px', color: 'var(--primary, #2563eb)' }}>{d.specialization}</div>
+        </div>
+      ),
+    },
+    {
+      header: 'Room',
+      key: 'roomNo',
+      width: '100px',
+      render: (d) => (
+        <span style={{ fontWeight: '500', color: 'var(--text-secondary, #667085)' }}>
+          Room {d.roomNo}
+        </span>
+      ),
+    },
+    {
+      header: 'Emergency Waiting',
+      key: 'emergencyWaiting',
+      width: '150px',
+      render: (d) => (
+        d.emergencyWaiting > 0 ? (
+          <Badge variant="emergency" size="sm">{d.emergencyWaiting} patients</Badge>
+        ) : (
+          <span style={{ color: 'var(--text-secondary, #667085)', fontSize: '12.5px' }}>0</span>
+        )
+      ),
+    },
+    {
+      header: 'Normal Waiting',
+      key: 'normalWaiting',
+      width: '140px',
+      render: (d) => (
+        d.normalWaiting > 0 ? (
+          <Badge variant="normal" size="sm">{d.normalWaiting} patients</Badge>
+        ) : (
+          <span style={{ color: 'var(--text-secondary, #667085)', fontSize: '12.5px' }}>0</span>
+        )
+      ),
+    },
+    {
+      header: 'Total Waiting',
+      key: 'totalWaiting',
+      width: '120px',
+      render: (d) => (
+        <span style={{ fontWeight: '700', color: d.totalWaiting > 0 ? 'var(--text-main, #172033)' : 'var(--text-secondary, #667085)' }}>
+          {d.totalWaiting}
+        </span>
+      ),
+    },
+    {
+      header: 'Currently Consulting',
+      key: 'currentlyConsulting',
+      render: (d) => (
+        d.hasCurrentConsultation ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <span
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                fontSize: '12px',
+                fontWeight: '700',
+                padding: '0.15rem 0.45rem',
+                borderRadius: 'var(--radius-xs, 4px)',
+                backgroundColor: 'var(--status-consulting-bg, #eef2ff)',
+                color: 'var(--status-consulting-text, #3730a3)',
+                border: '1px solid var(--status-consulting-border, #c7d2fe)',
+              }}
+            >
+              Token {d.formattedCurrentToken}
+            </span>
+            <span style={{ fontSize: '12.5px', color: 'var(--text-main, #172033)', fontWeight: '500' }}>
+              {d.currentPatientName}
+            </span>
+          </div>
+        ) : (
+          <span style={{ color: 'var(--text-secondary, #667085)', fontSize: '12.5px', fontStyle: 'italic' }}>
+            Available
+          </span>
+        )
+      ),
+    },
+    {
+      header: 'Action',
+      key: 'action',
+      width: '110px',
+      align: 'right',
+      render: (d) => (
+        <Link to={`/doctor-queues?doctorId=${d.doctorId}`} style={{ textDecoration: 'none' }}>
+          <Button variant="outline" size="sm">View Queue</Button>
+        </Link>
+      ),
+    },
+  ];
+
+  const recentColumns = [
+    {
+      header: 'Token',
+      key: 'tokenNo',
+      width: '90px',
+      render: (c) => (
+        <span
+          style={{
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            fontWeight: '700',
+            fontSize: '13px',
+            padding: '0.15rem 0.45rem',
+            borderRadius: 'var(--radius-xs, 4px)',
+            backgroundColor: c.emergency ? 'var(--status-emergency-bg, #fee2e2)' : 'var(--primary-subtle, #eff6ff)',
+            color: c.emergency ? 'var(--status-emergency-text, #991b1b)' : 'var(--primary, #2563eb)',
+            border: `1px solid ${c.emergency ? 'var(--status-emergency-border, #fecaca)' : 'var(--primary-border, #bfdbfe)'}`,
+          }}
+        >
+          {c.formattedToken || String(c.tokenNo).padStart(3, '0')}
+        </span>
+      ),
+    },
+    {
+      header: 'Patient',
+      key: 'patientName',
+      render: (c) => (
+        <div>
+          <div style={{ fontWeight: '600', color: 'var(--text-main, #172033)' }}>{c.patientName}</div>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary, #667085)' }}>Patient #{c.patientId}</div>
+        </div>
+      ),
+    },
+    {
+      header: 'Doctor',
+      key: 'doctorName',
+      render: (c) => (
+        <div style={{ fontWeight: '500', color: 'var(--text-main, #172033)' }}>{c.doctorName}</div>
+      ),
+    },
+    {
+      header: 'Room',
+      key: 'roomNo',
+      width: '90px',
+      render: (c) => (
+        <span style={{ color: 'var(--text-secondary, #667085)' }}>Room {c.roomNo}</span>
+      ),
+    },
+    {
+      header: 'Priority',
+      key: 'priority',
+      width: '110px',
+      render: (c) => (
+        <Badge variant={c.emergency ? 'emergency' : 'normal'} size="sm">
+          {c.emergency ? 'Emergency' : 'Normal'}
+        </Badge>
+      ),
+    },
+    {
+      header: 'Status',
+      key: 'status',
+      width: '140px',
+      render: (c) => <ConsultationStatusBadge status={c.status} size="sm" />,
+    },
+    {
+      header: 'Time',
+      key: 'createdAt',
+      width: '130px',
+      render: (c) => (
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>
+          {c.createdAt || '—'}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Top Banner */}
       <div
         style={{
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--surface, #ffffff)',
           padding: '1.25rem 1.5rem',
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0',
+          borderRadius: 'var(--radius-md, 8px)',
+          border: '1px solid var(--border, #e4e7ec)',
           gap: '1rem',
         }}
       >
         <div>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#0f172a' }}>
-            Operational Dashboard
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main, #172033)', letterSpacing: '-0.02em' }}>
+            Dashboard
           </h2>
-          <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
-            Real-time hospital queue management &bull; Live C++ DSA queue telemetry
+          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #667085)', marginTop: '0.15rem' }}>
+            Overview of today's patient flow
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <Button variant="outline" onClick={fetchDashboardData} loading={loading}>
-            Refresh
-          </Button>
-          <Link to="/register-patient" style={{ textDecoration: 'none' }}>
-            <Button variant="secondary">+ Register Patient</Button>
-          </Link>
-          <Link to="/new-consultation" style={{ textDecoration: 'none' }}>
-            <Button variant="primary">+ New Consultation</Button>
-          </Link>
-        </div>
+        <Button variant="outline" onClick={fetchDashboardData} loading={loading} icon={<RefreshIcon size={16} />}>
+          Refresh
+        </Button>
       </div>
 
       {error && <ErrorMessage message={error} retryAction={fetchDashboardData} />}
 
-      {/* KPI Cards Grid */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '1rem',
         }}
       >
-        <Card>
+        <Card style={{ borderLeft: '4px solid var(--status-waiting, #d97706)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <p style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>
-                Total Waiting
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Patients Waiting
               </p>
-              <h3 style={{ fontSize: '1.85rem', fontWeight: '700', color: '#0f172a', marginTop: '0.25rem' }}>
+              <h3 style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--text-main, #172033)', marginTop: '0.35rem', lineHeight: 1 }}>
                 {loading && !stats ? '...' : totalWaiting}
               </h3>
             </div>
-            <Badge variant="waiting">Queue</Badge>
+            <Badge variant="waiting" size="sm">Queue</Badge>
           </div>
-          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>Active in-memory queues</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)', marginTop: '0.5rem' }}>Waiting across all rooms</p>
         </Card>
 
-        <Card>
+        <Card style={{ borderLeft: '4px solid var(--status-emergency, #dc2626)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <p style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: '700', textTransform: 'uppercase' }}>
-                Emergency Waiting
+              <p style={{ fontSize: '12px', color: 'var(--status-emergency-text, #991b1b)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Emergency Patients
               </p>
-              <h3 style={{ fontSize: '1.85rem', fontWeight: '700', color: '#dc2626', marginTop: '0.25rem' }}>
+              <h3 style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--status-emergency, #dc2626)', marginTop: '0.35rem', lineHeight: 1 }}>
                 {loading && !stats ? '...' : emergencyWaiting}
               </h3>
             </div>
-            <Badge variant="emergency">Priority</Badge>
+            <Badge variant="emergency" size="sm">Priority</Badge>
           </div>
-          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>Bypasses normal queue</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)', marginTop: '0.5rem' }}>Priority queue patients</p>
         </Card>
 
-        <Card>
+        <Card style={{ borderLeft: '4px solid var(--status-consulting, #4f46e5)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <p style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: '700', textTransform: 'uppercase' }}>
-                Normal Waiting
-              </p>
-              <h3 style={{ fontSize: '1.85rem', fontWeight: '700', color: '#0284c7', marginTop: '0.25rem' }}>
-                {loading && !stats ? '...' : normalWaiting}
-              </h3>
-            </div>
-            <Badge variant="normal">FIFO</Badge>
-          </div>
-          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>Processed FIFO order</p>
-        </Card>
-
-        <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <p style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: '700', textTransform: 'uppercase' }}>
+              <p style={{ fontSize: '12px', color: 'var(--status-consulting-text, #3730a3)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 In Consultation
               </p>
-              <h3 style={{ fontSize: '1.85rem', fontWeight: '700', color: '#7c3aed', marginTop: '0.25rem' }}>
+              <h3 style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--status-consulting, #4f46e5)', marginTop: '0.35rem', lineHeight: 1 }}>
                 {loading && !stats ? '...' : inConsultation}
               </h3>
             </div>
-            <Badge variant="inConsultation">Active</Badge>
+            <Badge variant="inConsultation" size="sm">Examining</Badge>
           </div>
-          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>Currently with doctors</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)', marginTop: '0.5rem' }}>Currently with doctors</p>
         </Card>
 
-        <Card>
+        <Card style={{ borderLeft: '4px solid var(--status-completed, #16a34a)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <p style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '700', textTransform: 'uppercase' }}>
+              <p style={{ fontSize: '12px', color: 'var(--status-completed-text, #166534)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Active Doctors
               </p>
-              <h3 style={{ fontSize: '1.85rem', fontWeight: '700', color: '#16a34a', marginTop: '0.25rem' }}>
+              <h3 style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--status-completed, #16a34a)', marginTop: '0.35rem', lineHeight: 1 }}>
                 {loading && !stats ? '...' : doctorCount}
               </h3>
             </div>
-            <Badge variant="completed">Rooms</Badge>
+            <Badge variant="completed" size="sm">Available</Badge>
           </div>
-          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>Available for consultations</p>
-        </Card>
-
-        <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <p style={{ fontSize: '0.75rem', color: '#4f46e5', fontWeight: '700', textTransform: 'uppercase' }}>
-                Next Token
-              </p>
-              <h3 style={{ fontSize: '1.85rem', fontWeight: '700', color: '#4f46e5', marginTop: '0.25rem', fontFamily: 'monospace' }}>
-                {loading && !stats ? '...' : nextTokenStr}
-              </h3>
-            </div>
-            <Badge variant="info">Sequence</Badge>
-          </div>
-          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>Sequential token sequence</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)', marginTop: '0.5rem' }}>Consulting rooms staffed</p>
         </Card>
       </div>
 
-      {/* Secondary Metrics */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1rem',
-        }}
-      >
-        <div style={{ padding: '0.85rem 1rem', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Total Registered Patients:</span>
-          <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginTop: '0.2rem' }}>
-            {patientCount}
-          </p>
-        </div>
-        <div style={{ padding: '0.85rem 1rem', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Completed Consultations:</span>
-          <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a', marginTop: '0.2rem' }}>
-            {completedCount}
-          </p>
-        </div>
-        <div style={{ padding: '0.85rem 1rem', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Cancelled Consultations:</span>
-          <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#64748b', marginTop: '0.2rem' }}>
-            {cancelledCount}
-          </p>
-        </div>
-      </div>
-
-      {/* Per-Doctor Queue Load Summary */}
       <Card
-        title="Doctor Queue Summary"
-        subtitle="Current live load distribution across consulting rooms"
-        actions={
-          <Link to="/doctor-queues" style={{ textDecoration: 'none' }}>
-            <Button variant="outline" size="sm">Inspect Queues</Button>
-          </Link>
-        }
+        title="CURRENTLY IN CONSULTATION"
+        subtitle="Patients currently inside examination rooms with attending doctors"
       >
-        {loading && !stats ? (
-          <LoadingState message="Loading live doctor queues..." />
-        ) : stats && stats.doctorQueueSummary && stats.doctorQueueSummary.length > 0 ? (
+        {loading && activeConsultations.length === 0 ? (
+          <LoadingState message="Checking active consultations..." minHeight="120px" />
+        ) : activeConsultations.length > 0 ? (
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
               gap: '1rem',
             }}
           >
-            {stats.doctorQueueSummary.map((doc) => (
+            {activeConsultations.map((c) => (
               <div
-                key={doc.doctorId}
+                key={c.tokenNo}
                 style={{
+                  backgroundColor: 'var(--status-consulting-bg, #eef2ff)',
+                  border: '1px solid var(--status-consulting-border, #c7d2fe)',
+                  borderRadius: 'var(--radius-sm, 6px)',
                   padding: '1rem',
-                  backgroundColor: '#f8fafc',
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.5rem',
+                  gap: '0.65rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: '#0f172a' }}>
-                      {doc.doctorName}
-                    </h4>
-                    <span style={{ fontSize: '0.8rem', color: '#2563eb' }}>{doc.specialization}</span>
-                  </div>
                   <span
                     style={{
-                      fontSize: '0.75rem',
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                      fontSize: '15px',
                       fontWeight: '700',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '4px',
-                      backgroundColor: '#e2e8f0',
-                      color: '#334155',
+                      padding: '0.2rem 0.55rem',
+                      borderRadius: 'var(--radius-xs, 4px)',
+                      backgroundColor: 'var(--status-consulting, #4f46e5)',
+                      color: '#ffffff',
                     }}
                   >
-                    Room {doc.roomNo}
+                    Token {c.formattedToken || String(c.tokenNo).padStart(3, '0')}
                   </span>
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                    <ConsultationStatusBadge status="In Consultation" size="sm" />
+                    {c.emergency && <Badge variant="emergency" size="sm">EMG</Badge>}
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
-                  <span>Waiting: <strong style={{ color: '#0f172a' }}>{doc.totalWaiting}</strong></span>
-                  {doc.emergencyWaiting > 0 && (
-                    <Badge variant="emergency" size="sm">
-                      {doc.emergencyWaiting} EMG
-                    </Badge>
-                  )}
-                  {doc.normalWaiting > 0 && (
-                    <Badge variant="normal" size="sm">
-                      {doc.normalWaiting} Normal
-                    </Badge>
-                  )}
+                <div>
+                  <h4 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>
+                    {c.patientName}
+                  </h4>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)', marginTop: '0.15rem' }}>
+                    Patient #{c.patientId} &bull; Issue: {c.healthIssue || 'General consultation'}
+                  </div>
                 </div>
 
-                {doc.hasCurrentConsultation && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#6b21a8', backgroundColor: '#faf5ff', padding: '0.35rem 0.6rem', borderRadius: '4px', border: '1px solid #e9d5ff' }}>
-                    <span style={{ fontWeight: '700' }}>In Room:</span>
-                    <span style={{ fontFamily: 'monospace', fontWeight: '700' }}>Token {doc.formattedCurrentToken}</span>
-                    <span style={{ color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>({doc.currentPatientName})</span>
-                  </div>
-                )}
-
-                {doc.hasNextPatient ? (
-                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '0.25rem' }}>
-                    Next to call:{' '}
-                    <strong
-                      style={{
-                        fontFamily: 'monospace',
-                        color: doc.isNextEmergency ? '#dc2626' : '#2563eb',
-                      }}
-                    >
-                      Token {doc.formattedNextToken} {doc.isNextEmergency ? '(EMERGENCY)' : ''}
-                    </strong>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic', marginTop: '0.25rem' }}>
-                    Queue empty
-                  </div>
-                )}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: '0.65rem',
+                    borderTop: '1px solid rgba(199, 210, 254, 0.6)',
+                    fontSize: '12.5px',
+                    color: 'var(--status-consulting-text, #3730a3)',
+                  }}
+                >
+                  <span style={{ fontWeight: '600' }}>{c.doctorName}</span>
+                  <span style={{ fontWeight: '500' }}>Room {c.roomNo}</span>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <EmptyState
-            title="No Doctors Registered"
-            description="No consulting rooms or doctors are currently configured."
-            icon="👨‍⚕️"
-            actionButton={
-              <Link to="/doctors">
-                <Button variant="primary">Go to Doctors Directory</Button>
-              </Link>
-            }
-          />
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary, #667085)', padding: '1.75rem 0', fontSize: '13.5px' }}>
+            No patient currently inside consultation rooms. Doctors are ready to call waiting patients.
+          </div>
         )}
       </Card>
 
-      {/* Backend & Persistence System Telemetry */}
-      <Card title="C++ Core & Persistence Status">
+      <Card
+        title="DOCTOR QUEUE OVERVIEW"
+        subtitle="Current live load distribution across consulting rooms"
+        actions={
+          <Link to="/doctor-queues" style={{ textDecoration: 'none' }}>
+            <Button variant="outline" size="sm">All Doctor Queues</Button>
+          </Link>
+        }
+      >
+        <Table
+          columns={doctorColumns}
+          data={doctorQueueSummary}
+          emptyMessage="No doctors configured in system yet."
+          keyExtractor={(d) => d.doctorId}
+        />
+      </Card>
+
+      <div>
+        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.65rem' }}>
+          QUICK ACTIONS
+        </div>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: '1rem',
           }}
         >
-          <div style={{ padding: '0.85rem', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>C++ REST API Server</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem' }}>
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: isBackendRunning ? '#16a34a' : '#dc2626',
-                }}
-              />
-              <strong style={{ color: isBackendRunning ? '#16a34a' : '#dc2626' }}>
-                {isBackendRunning ? 'Online (HTTP/REST JSON)' : 'Disconnected'}
-              </strong>
+          <Link to="/register-patient" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                backgroundColor: 'var(--surface, #ffffff)',
+                border: '1px solid var(--border, #e4e7ec)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                transition: 'border-color var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--primary, #2563eb)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border, #e4e7ec)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ color: 'var(--primary, #2563eb)', display: 'flex' }}>
+                <RegisterIcon size={20} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>Register Patient</h4>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>Create new patient ID</p>
+              </div>
             </div>
-          </div>
+          </Link>
 
-          <div style={{ padding: '0.85rem', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>MongoDB Database</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem' }}>
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: isDbConnected ? '#16a34a' : '#dc2626',
-                }}
-              />
-              <strong style={{ color: isDbConnected ? '#16a34a' : '#dc2626' }}>
-                {isDbConnected ? 'Connected (Persistent)' : 'Disconnected / In-Memory'}
-              </strong>
+          <Link to="/new-consultation" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                backgroundColor: 'var(--surface, #ffffff)',
+                border: '1px solid var(--border, #e4e7ec)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                transition: 'border-color var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--primary, #2563eb)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border, #e4e7ec)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ color: 'var(--primary, #2563eb)', display: 'flex' }}>
+                <QueueIcon size={20} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>New Consultation</h4>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>Issue token & queue</p>
+              </div>
             </div>
-          </div>
+          </Link>
 
-          <div style={{ padding: '0.85rem', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>In-Memory Queue Engine</span>
-            <div style={{ marginTop: '0.25rem' }}>
-              <strong style={{ color: '#2563eb', fontFamily: 'monospace' }}>
-                Array-Based Circular Queue (FIFO)
-              </strong>
+          <Link to="/search-patients" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                backgroundColor: 'var(--surface, #ffffff)',
+                border: '1px solid var(--border, #e4e7ec)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                transition: 'border-color var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--primary, #2563eb)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border, #e4e7ec)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ color: 'var(--primary, #2563eb)', display: 'flex' }}>
+                <SearchIcon size={20} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>Search Patient</h4>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>Lookup by phone or ID</p>
+              </div>
             </div>
-          </div>
+          </Link>
+
+          <Link to="/doctor-queues" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                backgroundColor: 'var(--surface, #ffffff)',
+                border: '1px solid var(--border, #e4e7ec)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                transition: 'border-color var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--primary, #2563eb)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border, #e4e7ec)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ color: 'var(--primary, #2563eb)', display: 'flex' }}>
+                <DoctorIcon size={20} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>Doctor Queues</h4>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>View active waitlists</p>
+              </div>
+            </div>
+          </Link>
         </div>
+      </div>
+
+      <Card
+        title="RECENT CONSULTATIONS"
+        subtitle="Recent patient visits across all hospital rooms"
+        actions={
+          <Link to="/consultations" style={{ textDecoration: 'none' }}>
+            <Button variant="outline" size="sm">View All Records</Button>
+          </Link>
+        }
+      >
+        <Table
+          columns={recentColumns}
+          data={recentConsultations}
+          emptyMessage="No consultation records registered in the system yet."
+          keyExtractor={(c) => c.tokenNo}
+        />
       </Card>
     </div>
   );

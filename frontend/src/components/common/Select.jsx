@@ -24,16 +24,16 @@ export default function Select({
         <label
           htmlFor={selectId}
           style={{
-            fontSize: '0.85rem',
-            fontWeight: '600',
-            color: '#334155',
+            fontSize: '13px',
+            fontWeight: '500',
+            color: 'var(--text-main, #172033)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.25rem'
           }}
         >
           {label}
-          {required && <span style={{ color: '#dc2626' }}>*</span>}
+          {required && <span style={{ color: 'var(--status-emergency, #dc2626)' }}>*</span>}
         </label>
       )}
       <select
@@ -45,26 +45,28 @@ export default function Select({
         disabled={disabled}
         style={{
           padding: '0.55rem 0.75rem',
-          fontSize: '0.9rem',
-          borderRadius: '6px',
-          border: `1px solid ${error ? '#ef4444' : '#cbd5e1'}`,
-          backgroundColor: disabled ? '#f1f5f9' : '#ffffff',
-          color: disabled ? '#94a3b8' : '#0f172a',
+          fontSize: '14px',
+          borderRadius: 'var(--radius-sm, 6px)',
+          border: `1px solid ${error ? 'var(--status-emergency, #dc2626)' : 'var(--border, #e4e7ec)'}`,
+          backgroundColor: disabled ? 'var(--surface-muted, #f1f5f9)' : 'var(--surface, #ffffff)',
+          color: disabled ? 'var(--text-muted, #94a3b8)' : 'var(--text-main, #172033)',
           outline: 'none',
-          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-          boxShadow: error ? '0 0 0 1px #ef4444' : 'none',
+          transition: 'border-color var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease)',
+          boxShadow: error ? '0 0 0 1px var(--status-emergency, #dc2626)' : 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
+          boxSizing: 'border-box',
+          width: '100%',
           ...selectStyle
         }}
         onFocus={(e) => {
           if (!disabled && !error) {
-            e.currentTarget.style.borderColor = '#2563eb';
-            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.15)';
+            e.currentTarget.style.borderColor = 'var(--primary, #2563eb)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.12)';
           }
         }}
         onBlur={(e) => {
           if (!disabled && !error) {
-            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.borderColor = 'var(--border, #e4e7ec)';
             e.currentTarget.style.boxShadow = 'none';
           }
         }}
@@ -87,12 +89,12 @@ export default function Select({
         })}
       </select>
       {error && (
-        <span style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: '500' }}>
+        <span style={{ fontSize: '12px', color: 'var(--status-emergency, #dc2626)', fontWeight: '500' }}>
           {error}
         </span>
       )}
       {!error && helperText && (
-        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>
           {helperText}
         </span>
       )}

@@ -14,34 +14,34 @@ export default function PatientCard({
   return (
     <Card
       style={{
-        borderLeft: '4px solid #2563eb',
+        borderLeft: '4px solid var(--primary, #2563eb)',
         ...style
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <span
               style={{
-                fontSize: '0.75rem',
-                fontWeight: '700',
+                fontSize: '12px',
+                fontWeight: '600',
                 padding: '0.15rem 0.5rem',
-                borderRadius: '4px',
-                backgroundColor: '#eff6ff',
-                color: '#1d4ed8',
-                border: '1px solid #bfdbfe'
+                borderRadius: 'var(--radius-xs, 4px)',
+                backgroundColor: 'var(--primary-subtle, #eff6ff)',
+                color: 'var(--primary, #2563eb)',
+                border: '1px solid var(--primary-border, #bfdbfe)'
               }}
             >
-              ID: {patient.patientId}
+              #{patient.patientId}
             </span>
-            <h4 style={{ fontSize: '1rem', fontWeight: '700', color: '#0f172a' }}>
+            <h4 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>
               {patient.patientName}
             </h4>
           </div>
-          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.825rem', color: '#64748b' }}>
-            <span>Age: <strong style={{ color: '#334155' }}>{patient.age}</strong></span>
-            <span>Gender: <strong style={{ color: '#334155' }}>{patient.gender}</strong></span>
-            <span>Phone: <strong style={{ color: '#334155' }}>{patient.phone}</strong></span>
+          <div style={{ display: 'flex', gap: '1rem', fontSize: '13px', color: 'var(--text-secondary, #667085)', flexWrap: 'wrap' }}>
+            <span>Age: <strong style={{ color: 'var(--text-main, #172033)' }}>{patient.age}</strong></span>
+            <span>Gender: <strong style={{ color: 'var(--text-main, #172033)' }}>{patient.gender}</strong></span>
+            <span>Phone: <strong style={{ color: 'var(--text-main, #172033)' }}>{patient.phone}</strong></span>
           </div>
         </div>
 

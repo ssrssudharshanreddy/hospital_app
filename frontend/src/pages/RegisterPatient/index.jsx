@@ -5,6 +5,7 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Button from '../../components/common/Button';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import { InfoIcon, CheckIcon, QueueIcon, RegisterIcon } from '../../components/common/Icons';
 import api from '../../services/api';
 
 export default function RegisterPatientPage() {
@@ -28,7 +29,6 @@ export default function RegisterPatientPage() {
     e.preventDefault();
     setError(null);
 
-    // Client-side validation mirroring C++ backend rules
     if (!formData.patientName.trim()) {
       setError('Patient Name is required.');
       return;
@@ -62,7 +62,6 @@ export default function RegisterPatientPage() {
         setFormData({ patientName: '', age: '', gender: 'Male', phone: '' });
       }
     } catch (err) {
-      // Backend error handling: e.g. duplicate phone (409) or validation failure (400)
       setError(err.message || 'Unable to register patient.');
     } finally {
       setLoading(false);
@@ -76,33 +75,34 @@ export default function RegisterPatientPage() {
   };
 
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div>
-        <h2 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#0f172a' }}>
-          Register New Patient
+        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main, #172033)', letterSpacing: '-0.02em' }}>
+          Register Patient
         </h2>
-        <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
-          Create a permanent patient identity with automatic C++ sequential ID generation
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #667085)', marginTop: '0.15rem' }}>
+          Create a new patient record
         </p>
       </div>
 
       {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
 
-      {/* Prominent Success Display */}
       {createdPatient && (
         <div
           style={{
             padding: '1.25rem 1.5rem',
-            backgroundColor: '#f0fdf4',
-            borderRadius: '8px',
-            border: '1px solid #bbf7d0',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            backgroundColor: 'var(--status-completed-bg, #dcfce7)',
+            borderRadius: 'var(--radius-md, 8px)',
+            border: '1px solid var(--status-completed-border, #bbf7d0)',
+            boxShadow: 'var(--shadow-xs)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '1.25rem' }}>🎉</span>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#166534' }}>
-              Patient Registered Successfully
+            <span style={{ color: 'var(--status-completed, #16a34a)', display: 'flex' }}>
+              <CheckIcon size={20} />
+            </span>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--status-completed-text, #166534)' }}>
+              Patient Registered
             </h3>
           </div>
 
@@ -111,34 +111,34 @@ export default function RegisterPatientPage() {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
               gap: '0.85rem',
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--surface, #ffffff)',
               padding: '1rem',
-              borderRadius: '6px',
-              border: '1px solid #dcfce7',
+              borderRadius: 'var(--radius-sm, 6px)',
+              border: '1px solid rgba(187, 247, 208, 0.7)',
               marginBottom: '1rem',
             }}
           >
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Patient ID:</span>
-              <p style={{ fontSize: '1.2rem', fontWeight: '700', color: '#16a34a' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>Patient ID:</span>
+              <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--status-completed, #16a34a)' }}>
                 #{createdPatient.patientId}
               </p>
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Patient Name:</span>
-              <p style={{ fontSize: '1rem', fontWeight: '600', color: '#0f172a' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>Full Name:</span>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main, #172033)' }}>
                 {createdPatient.patientName}
               </p>
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Age / Gender:</span>
-              <p style={{ fontSize: '0.9rem', fontWeight: '500', color: '#334155' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>Age / Gender:</span>
+              <p style={{ fontSize: '13.5px', color: 'var(--text-main, #172033)' }}>
                 {createdPatient.age} yrs &bull; {createdPatient.gender}
               </p>
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Phone:</span>
-              <p style={{ fontSize: '0.9rem', fontWeight: '500', color: '#334155' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary, #667085)' }}>Phone Number:</span>
+              <p style={{ fontSize: '13.5px', fontFamily: 'ui-monospace, monospace', color: 'var(--text-main, #172033)' }}>
                 {createdPatient.phone}
               </p>
             </div>
@@ -146,49 +146,47 @@ export default function RegisterPatientPage() {
 
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <Link to={`/new-consultation?patientId=${createdPatient.patientId}`} style={{ textDecoration: 'none' }}>
-              <Button variant="primary">
-                + Book Consultation for This Patient
+              <Button variant="primary" icon={<QueueIcon size={16} />}>
+                New Consultation
               </Button>
             </Link>
-            <Button variant="outline" onClick={handleRegisterAnother}>
+            <Button variant="outline" onClick={handleRegisterAnother} icon={<RegisterIcon size={16} />}>
               Register Another Patient
             </Button>
           </div>
         </div>
       )}
 
-      {/* Registration Form */}
       <Card title="Patient Details">
         <form onSubmit={handleSubmit}>
-          {/* Rule Notification */}
           <div
             style={{
               padding: '0.75rem 1rem',
-              backgroundColor: '#eff6ff',
-              borderRadius: '6px',
-              border: '1px solid #bfdbfe',
-              fontSize: '0.825rem',
-              color: '#1e40af',
+              backgroundColor: 'var(--primary-subtle, #eff6ff)',
+              borderRadius: 'var(--radius-sm, 6px)',
+              border: '1px solid var(--primary-border, #bfdbfe)',
+              fontSize: '13px',
+              color: 'var(--primary, #2563eb)',
               marginBottom: '1.25rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.65rem',
             }}
           >
-            <span>ℹ️</span>
+            <InfoIcon size={18} />
             <span>
-              <strong>Note:</strong> Patient ID is generated automatically by C++ upon creation. There is no manual ID input.
+              Patient ID is system-generated upon registration. There is no manual ID input.
             </span>
           </div>
 
           <Input
-            label="Patient Name"
+            label="Full Name"
             name="patientName"
             value={formData.patientName}
             onChange={handleChange}
-            placeholder="e.g. Rahul Sharma"
+            placeholder="e.g. John Smith"
             required
-            helperText="Enter the patient's full legal name"
+            helperText="Enter the patient's legal name"
           />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -198,7 +196,7 @@ export default function RegisterPatientPage() {
               type="number"
               value={formData.age}
               onChange={handleChange}
-              placeholder="e.g. 29"
+              placeholder="e.g. 34"
               required
               min="1"
               max="150"
@@ -223,10 +221,10 @@ export default function RegisterPatientPage() {
             name="phone"
             value={formData.phone}
             onChange={handleChange}
-            placeholder="10-digit mobile number (e.g. 9876543210)"
+            placeholder="10-digit phone number (e.g. 9876543210)"
             required
             maxLength="10"
-            helperText="Must be a unique 10-digit phone number"
+            helperText="Must be a unique 10-digit number"
           />
 
           <div
@@ -236,7 +234,7 @@ export default function RegisterPatientPage() {
               gap: '0.75rem',
               marginTop: '1.5rem',
               paddingTop: '1rem',
-              borderTop: '1px solid #f1f5f9',
+              borderTop: '1px solid var(--border-light, #f1f5f9)',
             }}
           >
             <Button
@@ -247,8 +245,8 @@ export default function RegisterPatientPage() {
             >
               Clear
             </Button>
-            <Button variant="primary" type="submit" loading={loading}>
-              Register Patient
+            <Button variant="primary" type="submit" loading={loading} disabled={loading}>
+              {loading ? 'Registering...' : 'Register Patient'}
             </Button>
           </div>
         </form>

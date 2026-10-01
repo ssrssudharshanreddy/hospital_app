@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertIcon, CloseIcon } from './Icons';
 
 export default function ErrorMessage({
   message,
@@ -15,35 +16,37 @@ export default function ErrorMessage({
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        padding: '0.85rem 1rem',
-        borderRadius: '6px',
-        backgroundColor: '#fef2f2',
-        border: '1px solid #fecaca',
-        color: '#991b1b',
-        fontSize: '0.875rem',
+        padding: '0.75rem 1rem',
+        borderRadius: 'var(--radius-sm, 6px)',
+        backgroundColor: 'var(--status-emergency-bg, #fee2e2)',
+        border: '1px solid var(--status-emergency-border, #fecaca)',
+        color: 'var(--status-emergency-text, #991b1b)',
+        fontSize: '13.5px',
         marginBottom: '1rem',
         ...style
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-        <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
+        <span style={{ color: 'var(--status-emergency, #dc2626)', flexShrink: 0, display: 'flex' }}>
+          <AlertIcon size={18} />
+        </span>
         <div>
           <span style={{ fontWeight: '600' }}>Error: </span>
           <span>{message}</span>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginLeft: '0.75rem' }}>
         {retryAction && (
           <button
             onClick={retryAction}
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#dc2626',
+              color: 'var(--status-emergency, #dc2626)',
               fontWeight: '600',
               cursor: 'pointer',
               textDecoration: 'underline',
-              fontSize: '0.8rem',
+              fontSize: '13px',
             }}
           >
             Retry
@@ -54,16 +57,17 @@ export default function ErrorMessage({
             onClick={onDismiss}
             aria-label="Dismiss error"
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               background: 'transparent',
               border: 'none',
-              color: '#991b1b',
+              color: 'var(--status-emergency-text, #991b1b)',
               cursor: 'pointer',
-              fontSize: '1.1rem',
-              lineHeight: 1,
-              padding: '0 0.25rem',
+              padding: '0.15rem',
             }}
           >
-            &times;
+            <CloseIcon size={14} />
           </button>
         )}
       </div>

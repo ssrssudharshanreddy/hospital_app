@@ -1,4 +1,5 @@
 import React from 'react';
+import { SpinnerIcon } from './Icons';
 
 export default function Button({
   children,
@@ -17,20 +18,23 @@ export default function Button({
     sm: {
       padding: '0.35rem 0.75rem',
       fontSize: '0.8rem',
-      borderRadius: '5px',
+      borderRadius: 'var(--radius-sm, 6px)',
       gap: '0.35rem',
+      height: '32px',
     },
     md: {
-      padding: '0.55rem 1.1rem',
+      padding: '0.5rem 1rem',
       fontSize: '0.875rem',
-      borderRadius: '6px',
+      borderRadius: 'var(--radius-sm, 6px)',
       gap: '0.5rem',
+      height: '38px',
     },
     lg: {
-      padding: '0.75rem 1.4rem',
-      fontSize: '1rem',
-      borderRadius: '8px',
-      gap: '0.65rem',
+      padding: '0.65rem 1.25rem',
+      fontSize: '0.95rem',
+      borderRadius: 'var(--radius-md, 8px)',
+      gap: '0.6rem',
+      height: '44px',
     },
   };
 
@@ -42,34 +46,40 @@ export default function Button({
     alignItems: 'center',
     justifyContent: 'center',
     fontWeight: '600',
-    border: 'none',
-    transition: 'all 0.15s ease',
-    opacity: disabled || loading ? 0.65 : 1,
+    border: '1px solid transparent',
+    transition: 'all var(--transition-fast, 0.15s ease)',
+    opacity: disabled || loading ? 0.6 : 1,
     cursor: disabled || loading ? 'not-allowed' : 'pointer',
+    userSelect: 'none',
+    boxSizing: 'border-box',
     ...currentSize,
   };
 
   const variantStyles = {
     primary: {
-      backgroundColor: '#2563eb',
+      backgroundColor: 'var(--primary, #2563eb)',
       color: '#ffffff',
+      borderColor: 'var(--primary, #2563eb)',
     },
     secondary: {
-      backgroundColor: '#e2e8f0',
-      color: '#1e293b',
+      backgroundColor: 'var(--surface-muted, #f1f5f9)',
+      color: 'var(--text-main, #172033)',
+      borderColor: 'var(--border, #e4e7ec)',
     },
     success: {
-      backgroundColor: '#16a34a',
+      backgroundColor: 'var(--status-completed, #16a34a)',
       color: '#ffffff',
+      borderColor: 'var(--status-completed, #16a34a)',
     },
     danger: {
-      backgroundColor: '#dc2626',
+      backgroundColor: 'var(--status-emergency, #dc2626)',
       color: '#ffffff',
+      borderColor: 'var(--status-emergency, #dc2626)',
     },
     outline: {
       backgroundColor: 'transparent',
-      color: '#334155',
-      border: '1px solid #cbd5e1',
+      color: 'var(--text-main, #172033)',
+      borderColor: 'var(--border, #e4e7ec)',
     },
   };
 
@@ -85,27 +95,31 @@ export default function Button({
       }}
       onMouseEnter={(e) => {
         if (!disabled && !loading) {
-          if (variant === 'primary') e.currentTarget.style.backgroundColor = '#1d4ed8';
-          if (variant === 'secondary') e.currentTarget.style.backgroundColor = '#cbd5e1';
+          if (variant === 'primary') e.currentTarget.style.backgroundColor = 'var(--primary-hover, #1d4ed8)';
+          if (variant === 'secondary') e.currentTarget.style.backgroundColor = '#e2e8f0';
           if (variant === 'success') e.currentTarget.style.backgroundColor = '#15803d';
           if (variant === 'danger') e.currentTarget.style.backgroundColor = '#b91c1c';
-          if (variant === 'outline') e.currentTarget.style.backgroundColor = '#f1f5f9';
+          if (variant === 'outline') {
+            e.currentTarget.style.backgroundColor = 'var(--surface-alt, #f8fafc)';
+            e.currentTarget.style.borderColor = 'var(--border-strong, #cbd5e1)';
+          }
         }
       }}
       onMouseLeave={(e) => {
         if (!disabled && !loading) {
           const orig = variantStyles[variant] || variantStyles.primary;
           e.currentTarget.style.backgroundColor = orig.backgroundColor;
+          e.currentTarget.style.borderColor = orig.borderColor;
         }
       }}
       {...props}
     >
       {loading ? (
-        <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
+        <SpinnerIcon size={size === 'sm' ? 14 : size === 'lg' ? 18 : 16} />
       ) : icon ? (
-        <span>{icon}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>{icon}</span>
       ) : null}
-      {children}
+      <span>{children}</span>
     </button>
   );
 }

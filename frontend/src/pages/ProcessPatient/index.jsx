@@ -9,13 +9,13 @@ import ErrorMessage from '../../components/common/ErrorMessage';
 import SuccessMessage from '../../components/common/SuccessMessage';
 import EmptyState from '../../components/common/EmptyState';
 import ConsultationStatusBadge from '../../components/consultations/ConsultationStatusBadge';
+import { CheckIcon, CancelIcon, PulseIcon, RefreshIcon } from '../../components/common/Icons';
 import api from '../../services/api';
 
 export default function ProcessPatientPage() {
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState(null);
   const [queueData, setQueueData] = useState(null);
-  const [lastProcessed, setLastProcessed] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -24,7 +24,6 @@ export default function ProcessPatientPage() {
   const [success, setSuccess] = useState(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
-  // 1. Load doctors
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
@@ -40,7 +39,6 @@ export default function ProcessPatientPage() {
     fetchDoctors();
   }, []);
 
-  // 2. Fetch current doctor queue
   const fetchQueue = async (docId) => {
     const id = docId || selectedDoctorId;
     if (!id) return;
@@ -60,11 +58,9 @@ export default function ProcessPatientPage() {
   useEffect(() => {
     if (selectedDoctorId) {
       fetchQueue(selectedDoctorId);
-      setLastProcessed(null);
     }
   }, [selectedDoctorId]);
 
-  // Handle calling next patient (Waiting -> In Consultation)
   const handleCallNext = async () => {
     if (!selectedDoctorId) return;
     setError(null);
@@ -74,9 +70,8 @@ export default function ProcessPatientPage() {
     try {
       const res = await api.processNextPatient(selectedDoctorId);
       if (res && res.data) {
-        setSuccess(
-          `Patient called into consultation! Token #${res.data.tokenNo} (${res.data.patientName}) is now In Consultation.`
-        );
+        const token = res.data.formattedToken || String(res.data.tokenNo).padStart(3, '0');
+        setSuccess(`Patient called: Token ${token} (${res.data.patientName}) is now In Consultation.`);
         await fetchQueue(selectedDoctorId);
       }
     } catch (err) {
@@ -86,7 +81,6 @@ export default function ProcessPatientPage() {
     }
   };
 
-  // Handle completing consultation (In Consultation -> Completed)
   const handleCompleteConsultation = async () => {
     if (!selectedDoctorId) return;
     setError(null);
@@ -96,10 +90,8 @@ export default function ProcessPatientPage() {
     try {
       const res = await api.completeConsultation(selectedDoctorId);
       if (res && res.data) {
-        setLastProcessed(res.data);
-        setSuccess(
-          `Consultation completed! Token #${res.data.tokenNo} (${res.data.patientName}) marked as Completed in C++ core & MongoDB.`
-        );
+        const token = res.data.formattedToken || String(res.data.tokenNo).padStart(3, '0');
+        setSuccess(`Consultation completed for Token ${token} (${res.data.patientName}).`);
         await fetchQueue(selectedDoctorId);
       }
     } catch (err) {
@@ -109,7 +101,6 @@ export default function ProcessPatientPage() {
     }
   };
 
-  // Handle cancelling waiting patient
   const handleCancelConsultation = async () => {
     if (!queueData || !queueData.nextPatient) return;
     const token = queueData.nextPatient.tokenNo;
@@ -121,7 +112,7 @@ export default function ProcessPatientPage() {
     try {
       const res = await api.cancelConsultation(token);
       if (res && res.data) {
-        setSuccess(`Token #${token} was cancelled and removed from active queue.`);
+        setSuccess(`Consultation for Token #${token} was cancelled and removed from queue.`);
         await fetchQueue(selectedDoctorId);
       }
     } catch (err) {
@@ -134,74 +125,46 @@ export default function ProcessPatientPage() {
   const currentPatient = queueData?.currentConsultation;
   const nextPatient = queueData?.nextPatient;
   const isEmergency = nextPatient?.emergency;
-  const isCurrentEmergency = currentPatient?.emergency;
+  const currentDoctor = queueData?.doctor;
 
   return (
-    <div style={{ maxWidth: '850px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div>
-        <h2 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#0f172a' }}>
-          Process Patient Consultation
-        </h2>
-        <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
-          Doctor consulting interface: Call waiting patients, manage active consultations, and complete encounters
-        </p>
+    <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main, #172033)', letterSpacing: '-0.02em' }}>
+            Process Patient
+          </h2>
+          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #667085)', marginTop: '0.15rem' }}>
+            Consultation desk console for attending doctors
+          </p>
+        </div>
+
+        <Button variant="outline" onClick={() => fetchQueue(selectedDoctorId)} loading={loading} icon={<RefreshIcon size={16} />}>
+          Refresh Queue
+        </Button>
       </div>
 
       {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
       {success && <SuccessMessage message={success} onDismiss={() => setSuccess(null)} />}
 
-      {/* Doctor Selection */}
       <Card>
-        <div style={{ maxWidth: '420px' }}>
+        <div style={{ maxWidth: '440px' }}>
           <DoctorSelector
             doctors={doctors}
             selectedDoctorId={selectedDoctorId}
             onChange={(id) => setSelectedDoctorId(id)}
-            label="Active Consulting Doctor"
+            label="Doctor"
           />
         </div>
       </Card>
 
-      {/* Last Processed Patient Notice */}
-      {lastProcessed && (
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            backgroundColor: '#f0fdf4',
-            borderRadius: '8px',
-            border: '1px solid #bbf7d0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
-          <div>
-            <span style={{ fontSize: '0.75rem', color: '#166534', fontWeight: '700', textTransform: 'uppercase' }}>
-              Last Completed Encounter
-            </span>
-            <div style={{ fontSize: '1rem', fontWeight: '700', color: '#0f172a', marginTop: '0.2rem' }}>
-              Token {lastProcessed.formattedToken || String(lastProcessed.tokenNo).padStart(3, '0')}: {lastProcessed.patientName} (ID: #{lastProcessed.patientId})
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-              Issue: {lastProcessed.healthIssue} &bull; Room {lastProcessed.roomNo}
-            </div>
-          </div>
-          <Badge variant="completed" size="md">
-            COMPLETED
-          </Badge>
-        </div>
-      )}
-
-      {/* SECTION 1: CURRENTLY CONSULTING (ACTIVE ENCOUNTER) */}
       {currentPatient && (
         <Card
           title="CURRENTLY CONSULTING"
-          subtitle={`Doctor is currently examining patient in Room ${queueData?.doctor?.roomNo}`}
+          subtitle={`Doctor is currently examining patient in Room ${currentDoctor?.roomNo || currentPatient.roomNo}`}
           style={{
-            borderLeft: '5px solid #7c3aed',
-            backgroundColor: '#faf5ff',
+            borderLeft: '4px solid var(--status-consulting, #4f46e5)',
+            backgroundColor: 'var(--status-consulting-bg, #eef2ff)',
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -209,30 +172,31 @@ export default function ProcessPatientPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div
                   style={{
-                    fontFamily: 'monospace',
-                    fontSize: '2.25rem',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontSize: '28px',
                     fontWeight: '800',
-                    padding: '0.35rem 0.95rem',
-                    borderRadius: '8px',
-                    backgroundColor: '#7c3aed',
+                    padding: '0.35rem 0.85rem',
+                    borderRadius: 'var(--radius-sm, 6px)',
+                    backgroundColor: 'var(--status-consulting, #4f46e5)',
                     color: '#ffffff',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.04em',
+                    lineHeight: 1.2,
                   }}
                 >
                   Token {currentPatient.formattedToken || String(currentPatient.tokenNo).padStart(3, '0')}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#0f172a' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-main, #172033)' }}>
                     {currentPatient.patientName}
                   </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary, #667085)' }}>
                       Patient ID: #{currentPatient.patientId}
                     </span>
-                    <ConsultationStatusBadge status="In Consultation" />
-                    {isCurrentEmergency && (
+                    <ConsultationStatusBadge status="In Consultation" size="sm" />
+                    {currentPatient.emergency && (
                       <Badge variant="emergency" size="sm">
-                        EMERGENCY
+                        Emergency
                       </Badge>
                     )}
                   </div>
@@ -241,44 +205,42 @@ export default function ProcessPatientPage() {
 
               <div
                 style={{
-                  padding: '0.4rem 0.85rem',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '6px',
-                  border: '1px solid #ddd6fe',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  color: '#6b21a8',
+                  padding: '0.35rem 0.75rem',
+                  backgroundColor: 'var(--surface, #ffffff)',
+                  borderRadius: 'var(--radius-xs, 4px)',
+                  border: '1px solid var(--status-consulting-border, #c7d2fe)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: 'var(--status-consulting-text, #3730a3)',
                 }}
               >
-                Room {queueData?.doctor?.roomNo}
+                Room {currentDoctor?.roomNo || currentPatient.roomNo}
               </div>
             </div>
 
-            {/* Health Issue */}
             <div
               style={{
-                padding: '1rem',
-                backgroundColor: '#ffffff',
-                borderRadius: '6px',
-                border: '1px solid #e9d5ff',
+                padding: '0.85rem 1rem',
+                backgroundColor: 'var(--surface, #ffffff)',
+                borderRadius: 'var(--radius-sm, 6px)',
+                border: '1px solid var(--status-consulting-border, #c7d2fe)',
               }}
             >
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#7c3aed', textTransform: 'uppercase' }}>
-                Reported Chief Health Issue:
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--status-consulting-text, #3730a3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Health Issue:
               </span>
-              <p style={{ fontSize: '1rem', color: '#1e293b', marginTop: '0.25rem', fontWeight: '600' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-main, #172033)', marginTop: '0.2rem', fontWeight: '500' }}>
                 {currentPatient.healthIssue || 'General medical consultation.'}
               </p>
             </div>
 
-            {/* Complete Consultation Action Button */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'flex-end',
                 alignItems: 'center',
-                paddingTop: '1rem',
-                borderTop: '1px solid #e9d5ff',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid rgba(199, 210, 254, 0.7)',
               }}
             >
               <Button
@@ -286,23 +248,23 @@ export default function ProcessPatientPage() {
                 size="lg"
                 onClick={handleCompleteConsultation}
                 loading={completing}
+                icon={<CheckIcon size={18} />}
               >
-                ✓ Complete Consultation
+                Complete Consultation
               </Button>
             </div>
           </div>
         </Card>
       )}
 
-      {/* SECTION 2: WAITING QUEUE / CALL NEXT PATIENT */}
       {loading && !queueData ? (
-        <LoadingState message="Checking waiting queue..." />
+        <LoadingState message="Checking doctor queue..." />
       ) : nextPatient ? (
         <Card
-          title={currentPatient ? 'Next Waiting Patient in Line' : 'Patient Currently In Turn'}
-          subtitle={`Priority handled by C++ DSA: ${isEmergency ? 'EMERGENCY OVERRIDES NORMAL' : 'NORMAL FIFO ORDER'}`}
+          title={currentPatient ? 'Next Waiting Patient in Queue' : 'Next Patient'}
+          subtitle={isEmergency ? 'Emergency patient overrides standard queue order' : 'Standard FIFO queue order'}
           style={{
-            borderLeft: `5px solid ${isEmergency ? '#dc2626' : '#2563eb'}`,
+            borderLeft: `4px solid ${isEmergency ? 'var(--status-emergency, #dc2626)' : 'var(--primary, #2563eb)'}`,
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -310,28 +272,29 @@ export default function ProcessPatientPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div
                   style={{
-                    fontFamily: 'monospace',
-                    fontSize: '2.25rem',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontSize: '28px',
                     fontWeight: '800',
-                    padding: '0.35rem 0.95rem',
-                    borderRadius: '8px',
-                    backgroundColor: isEmergency ? '#dc2626' : '#2563eb',
+                    padding: '0.35rem 0.85rem',
+                    borderRadius: 'var(--radius-sm, 6px)',
+                    backgroundColor: isEmergency ? 'var(--status-emergency, #dc2626)' : 'var(--primary, #2563eb)',
                     color: '#ffffff',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.04em',
+                    lineHeight: 1.2,
                   }}
                 >
                   Token {nextPatient.formattedToken || String(nextPatient.tokenNo).padStart(3, '0')}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', color: 'var(--text-main, #172033)' }}>
                     {nextPatient.patientName || `Patient #${nextPatient.patientId}`}
                   </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary, #667085)' }}>
                       Patient #{nextPatient.patientId}
                     </span>
-                    <Badge variant={isEmergency ? 'emergency' : 'normal'}>
-                      {isEmergency ? 'EMERGENCY PRIORITY' : 'Standard Appointment'}
+                    <Badge variant={isEmergency ? 'emergency' : 'normal'} size="sm">
+                      {isEmergency ? 'Emergency' : 'Normal'}
                     </Badge>
                     <Badge variant="waiting" size="sm">
                       Waiting
@@ -342,69 +305,68 @@ export default function ProcessPatientPage() {
 
               <div
                 style={{
-                  padding: '0.4rem 0.85rem',
-                  backgroundColor: '#f1f5f9',
-                  borderRadius: '6px',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  color: '#334155',
+                  padding: '0.35rem 0.75rem',
+                  backgroundColor: 'var(--surface-muted, #f1f5f9)',
+                  borderRadius: 'var(--radius-xs, 4px)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: 'var(--text-main, #172033)',
+                  border: '1px solid var(--border, #e4e7ec)',
                 }}
               >
-                Room {queueData?.doctor?.roomNo}
+                Room {currentDoctor?.roomNo}
               </div>
             </div>
 
-            {/* Health Issue Card */}
             <div
               style={{
-                padding: '1rem',
-                backgroundColor: '#f8fafc',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0',
+                padding: '0.85rem 1rem',
+                backgroundColor: 'var(--surface-alt, #f8fafc)',
+                borderRadius: 'var(--radius-sm, 6px)',
+                border: '1px solid var(--border, #e4e7ec)',
               }}
             >
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>
-                Reported Chief Health Issue:
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Reported Health Issue:
               </span>
-              <p style={{ fontSize: '0.95rem', color: '#1e293b', marginTop: '0.25rem', fontWeight: '600' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-main, #172033)', marginTop: '0.2rem', fontWeight: '500' }}>
                 {nextPatient.healthIssue || 'General medical consultation.'}
               </p>
             </div>
 
-            {/* In-Consultation Guard Notice */}
             {currentPatient && (
               <div
                 style={{
                   padding: '0.75rem 1rem',
-                  backgroundColor: '#fffbeb',
-                  borderRadius: '6px',
-                  border: '1px solid #fde68a',
-                  fontSize: '0.85rem',
-                  color: '#b45309',
-                  fontWeight: '600',
+                  backgroundColor: 'var(--status-waiting-bg, #fef3c7)',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  border: '1px solid var(--status-waiting-border, #fde68a)',
+                  fontSize: '13px',
+                  color: 'var(--status-waiting-text, #92400e)',
+                  fontWeight: '500',
                 }}
               >
-                Doctor is currently consulting with Token #{currentPatient.tokenNo} ({currentPatient.patientName}). Complete the active consultation above before calling this patient.
+                Doctor is currently consulting with Token #{currentPatient.tokenNo} ({currentPatient.patientName}). Complete the active consultation before calling this patient.
               </div>
             )}
 
-            {/* Action Bar */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 paddingTop: '1rem',
-                borderTop: '1px solid #e2e8f0',
+                borderTop: '1px solid var(--border-light, #f1f5f9)',
                 flexWrap: 'wrap',
                 gap: '0.75rem',
               }}
             >
               <Button
-                variant="danger"
+                variant="outline"
                 size="md"
                 onClick={() => setShowCancelDialog(true)}
                 disabled={processing || completing}
+                icon={<CancelIcon size={16} />}
               >
                 Cancel Consultation
               </Button>
@@ -415,8 +377,9 @@ export default function ProcessPatientPage() {
                 onClick={handleCallNext}
                 loading={processing}
                 disabled={!!currentPatient || completing}
+                icon={<PulseIcon size={18} />}
               >
-                {currentPatient ? 'Doctor Busy (Consulting)' : '📞 Call Patient (In Consultation)'}
+                {currentPatient ? 'Doctor Busy' : 'Call Patient'}
               </Button>
             </div>
           </div>
@@ -424,8 +387,7 @@ export default function ProcessPatientPage() {
       ) : !currentPatient ? (
         <EmptyState
           title="No Patients Waiting in Queue"
-          description={`Doctor ${queueData?.doctor?.doctorName || ''} currently has zero patients waiting in line.`}
-          icon="☕"
+          description={`Doctor ${currentDoctor?.doctorName || ''} currently has zero patients waiting in line.`}
           actionButton={
             <Button variant="outline" onClick={() => fetchQueue(selectedDoctorId)}>
               Refresh Queue
@@ -434,11 +396,10 @@ export default function ProcessPatientPage() {
         />
       ) : null}
 
-      {/* Confirmation Dialog for Cancellation */}
       <ConfirmationDialog
         isOpen={showCancelDialog}
-        title="Cancel Active Consultation"
-        message={`Are you sure you want to cancel Token #${nextPatient?.tokenNo}? This consultation will be removed from the active queue and its token will NEVER be reused.`}
+        title="Cancel Waiting Consultation"
+        message={`Are you sure you want to cancel Token #${nextPatient?.tokenNo}? This consultation will be removed from the active queue and its token will not be reused.`}
         confirmText="Confirm Cancellation"
         confirmVariant="danger"
         onConfirm={handleCancelConsultation}

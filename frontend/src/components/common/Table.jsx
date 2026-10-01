@@ -12,9 +12,9 @@ export default function Table({
       style={{
         width: '100%',
         overflowX: 'auto',
-        borderRadius: '8px',
-        border: '1px solid #e2e8f0',
-        backgroundColor: '#ffffff',
+        borderRadius: 'var(--radius-md, 8px)',
+        border: '1px solid var(--border, #e4e7ec)',
+        backgroundColor: 'var(--surface, #ffffff)',
       }}
     >
       <table
@@ -22,14 +22,14 @@ export default function Table({
           width: '100%',
           borderCollapse: 'collapse',
           textAlign: 'left',
-          fontSize: '0.875rem',
+          fontSize: '13.5px',
         }}
       >
         <thead>
           <tr
             style={{
-              backgroundColor: '#f8fafc',
-              borderBottom: '1px solid #e2e8f0',
+              backgroundColor: 'var(--surface-alt, #f8fafc)',
+              borderBottom: '1px solid var(--border, #e4e7ec)',
             }}
           >
             {columns.map((col, idx) => (
@@ -38,12 +38,13 @@ export default function Table({
                 style={{
                   padding: '0.75rem 1rem',
                   fontWeight: '600',
-                  color: '#475569',
-                  fontSize: '0.8rem',
-                  letterSpacing: '0.02em',
+                  color: 'var(--text-secondary, #667085)',
+                  fontSize: '12px',
+                  letterSpacing: '0.04em',
                   textTransform: 'uppercase',
                   width: col.width || 'auto',
                   textAlign: col.align || 'left',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {col.header}
@@ -59,8 +60,8 @@ export default function Table({
                 style={{
                   padding: '2.5rem 1rem',
                   textAlign: 'center',
-                  color: '#64748b',
-                  fontSize: '0.9rem',
+                  color: 'var(--text-secondary, #667085)',
+                  fontSize: '13.5px',
                 }}
               >
                 {emptyMessage}
@@ -72,15 +73,15 @@ export default function Table({
                 key={keyExtractor(item, rowIdx)}
                 onClick={() => onRowClick && onRowClick(item)}
                 style={{
-                  borderBottom: rowIdx === data.length - 1 ? 'none' : '1px solid #f1f5f9',
+                  borderBottom: rowIdx === data.length - 1 ? 'none' : '1px solid var(--border-light, #f1f5f9)',
                   cursor: onRowClick ? 'pointer' : 'default',
-                  transition: 'background-color 0.12s ease',
+                  transition: 'background-color var(--transition-fast, 0.12s ease)',
                 }}
                 onMouseEnter={(e) => {
-                  if (onRowClick) e.currentTarget.style.backgroundColor = '#f8fafc';
+                  if (onRowClick) e.currentTarget.style.backgroundColor = 'var(--surface-alt, #f8fafc)';
                 }}
                 onMouseLeave={(e) => {
-                  if (onRowClick) e.currentTarget.style.backgroundColor = '#ffffff';
+                  if (onRowClick) e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 {columns.map((col, colIdx) => (
@@ -88,8 +89,9 @@ export default function Table({
                     key={col.key || colIdx}
                     style={{
                       padding: '0.75rem 1rem',
-                      color: '#1e293b',
+                      color: 'var(--text-main, #172033)',
                       textAlign: col.align || 'left',
+                      verticalAlign: 'middle',
                     }}
                   >
                     {col.render ? col.render(item, rowIdx) : item[col.key]}

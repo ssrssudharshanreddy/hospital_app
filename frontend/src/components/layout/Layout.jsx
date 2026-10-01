@@ -6,26 +6,17 @@ export default function Layout({ children, backendConnected }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="app-shell">
       <Header
         backendConnected={backendConnected}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
       />
-      <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
+      <div className="app-body">
         <Sidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <main
-          style={{
-            flex: 1,
-            padding: '1.75rem 2rem',
-            backgroundColor: '#f8fafc',
-            overflowY: 'auto',
-            maxWidth: '1600px',
-            width: '100%',
-          }}
-        >
+        <main className="app-main">
           {children}
         </main>
       </div>
