@@ -6,6 +6,9 @@ export default function ConsultationStatusBadge({ status, emergency = false, siz
     switch (s?.toLowerCase()) {
       case 'waiting':
         return 'waiting';
+      case 'in consultation':
+      case 'in_consultation':
+        return 'inConsultation';
       case 'completed':
         return 'completed';
       case 'cancelled':
@@ -15,10 +18,17 @@ export default function ConsultationStatusBadge({ status, emergency = false, siz
     }
   };
 
+  const displayStatus = (s) => {
+    if (s?.toLowerCase() === 'in_consultation' || s?.toLowerCase() === 'in consultation') {
+      return 'In Consultation';
+    }
+    return s || 'Unknown';
+  };
+
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
       <Badge variant={getVariant(status)} size={size}>
-        {status || 'Unknown'}
+        {displayStatus(status)}
       </Badge>
       {emergency && (
         <Badge variant="emergency" size="sm">

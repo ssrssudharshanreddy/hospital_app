@@ -119,6 +119,7 @@ export default function DoctorQueuesPage() {
         <LoadingState message="Fetching live queue from C++ core..." />
       ) : queueData ? (
         <QueueList
+          currentConsultation={queueData.currentConsultation}
           emergencyQueue={queueData.emergencyQueue || []}
           normalQueue={queueData.normalQueue || []}
           nextPatient={queueData.nextPatient}

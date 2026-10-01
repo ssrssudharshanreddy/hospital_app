@@ -304,7 +304,7 @@ bool DatabaseManager::updateConsultationStatus(int tokenNo, const string& status
     string targetDate = date.empty() ? ts.substr(0, 10) : date;
     string script = "db." + config.consultationsCollection +
                          ".updateOne({tokenNo: " + to_string(tokenNo) +
-                         ", $or: [{date: '" + targetDate + "'}, {status: 'Waiting'}]}," +
+                         ", $or: [{date: '" + targetDate + "'}, {status: 'Waiting'}, {status: 'In Consultation'}, {status: 'IN_CONSULTATION'}]}," +
                          "{$set: {status: '" + status + "', updatedAt: '" + ts + "'}});\n";
     string out, err;
     return runMongoScript(script, out, err);

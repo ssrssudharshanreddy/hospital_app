@@ -18,6 +18,8 @@ private:
 
     PatientQueue normalQueues[MAX_DOCTORS];
     PatientQueue emergencyQueues[MAX_DOCTORS];
+    Registration currentConsultations[MAX_DOCTORS];
+    bool hasActiveConsultation[MAX_DOCTORS];
     string currentDate;
     int nextTokenNumber;
 
@@ -41,6 +43,9 @@ public:
                           bool isEmergency, Registration& outReg, string& errorMsg);
 
     bool processNextPatient(int doctorId, Registration& outProcessed, string& errorMsg);
+    bool completeConsultation(int doctorId, Registration& outCompleted, string& errorMsg);
+    bool hasCurrentConsultation(int doctorId) const;
+    bool getCurrentConsultation(int doctorId, Registration& outReg) const;
 
     bool cancelConsultation(int tokenNo, string& errorMsg);
     bool findConsultationByToken(int tokenNo, Registration& outReg) const;
@@ -55,6 +60,7 @@ public:
     int getTotalWaitingCount() const;
     int getEmergencyWaitingCount() const;
     int getNormalWaitingCount() const;
+    int getInConsultationCount() const;
     int getCompletedCount() const;
     int getCancelledCount() const;
     int getTotalConsultationCount() const;
@@ -76,6 +82,7 @@ public:
     bool rollbackConsultation(int tokenNo);
     bool rollbackCancellation(int tokenNo);
     bool rollbackProcessing(const Registration& reg);
+    bool rollbackCompletion(const Registration& reg);
 
     void loadPatient(const Patient& patient);
     void loadDoctor(const Doctor& doctor);

@@ -28,7 +28,7 @@ void ApiServer::registerRoutes() {
     });
 
     server->set_error_handler([](const httplib::Request&, httplib::Response& res) {
-        if (res.status == 404) {
+        if (res.status == 404 && res.body.empty()) {
             sendError(res, 404, "Endpoint not found.");
         }
     });
@@ -271,7 +271,13 @@ void ApiServer::registerRoutes() {
 
         json arr = json::array();
         for (const auto& c : all) {
-            if (!statusFilter.empty() && c.status != statusFilter) continue;
+            if (!statusFilter.empty()) {
+                bool match = (c.status == statusFilter);
+                if (!match && (statusFilter == "IN_CONSULTATION" || statusFilter == "In Consultation")) {
+                    match = (c.status == "In Consultation" || c.status == "IN_CONSULTATION");
+                }
+                if (!match) continue;
+            }
             if (docFilter != 0 && c.doctorId != docFilter) continue;
             if (patFilter != 0 && c.patientId != patFilter) continue;
             arr.push_back(registrationToJson(c));
@@ -368,6 +374,33 @@ void ApiServer::registerRoutes() {
         sendSuccess(res, data, 200, "Consultation cancelled successfully");
     });
 
+    server->Post(R"(/api/consultations/(\d+)/complete)", [this](const httplib::Request& req, httplib::Response& res) {
+        int token = stoi(req.matches[1]);
+        Registration rec;
+        if (!dsa.findConsultationByToken(token, rec)) {
+            sendError(res, 404, "Consultation record with Token #" + to_string(token) + " not found.");
+            return;
+        }
+
+        Registration completedRecord;
+        string err;
+        bool ok = dsa.completeConsultation(rec.doctorId, completedRecord, err);
+        if (!ok) {
+            sendError(res, 400, err);
+            return;
+        }
+
+        if (db.isConnected()) {
+            if (!db.updateConsultationStatus(completedRecord.tokenNo, "Completed")) {
+                dsa.rollbackCompletion(completedRecord);
+                sendError(res, 500, "Failed to persist completed status to database.");
+                return;
+            }
+        }
+
+        sendSuccess(res, registrationToJson(completedRecord), 200, "Consultation completed successfully");
+    });
+
     server->Get(R"(/api/queues/(\d+))", [this](const httplib::Request& req, httplib::Response& res) {
         int doctorId = stoi(req.matches[1]);
         Doctor doc;
@@ -392,6 +425,9 @@ void ApiServer::registerRoutes() {
         Registration nextPat;
         bool hasNext = dsa.getNextPatient(doctorId, nextPat);
 
+        Registration currentPat;
+        bool hasCurrent = dsa.getCurrentConsultation(doctorId, currentPat);
+
         int emgWaiting = dsa.getWaitingCount(doctorId, true);
         int totalWaiting = dsa.getWaitingCount(doctorId, false);
         int normWaiting = totalWaiting - emgWaiting;
@@ -402,10 +438,17 @@ void ApiServer::registerRoutes() {
             {"normalWaiting", normWaiting},
             {"totalWaiting", totalWaiting},
             {"hasNextPatient", hasNext},
+            {"hasCurrentConsultation", hasCurrent},
             {"effectiveProcessingOrder", "Emergency Queue First (FIFO) -> Normal Queue (FIFO)"},
             {"emergencyQueue", emgArr},
             {"normalQueue", normArr}
         };
+
+        if (hasCurrent) {
+            data["currentConsultation"] = registrationToJson(currentPat);
+        } else {
+            data["currentConsultation"] = nullptr;
+        }
 
         if (hasNext) {
             data["nextPatient"] = queueRegistrationToJson(nextPat);
@@ -431,14 +474,41 @@ void ApiServer::registerRoutes() {
         }
 
         if (db.isConnected()) {
-            if (!db.updateConsultationStatus(processedRecord.tokenNo, "Completed")) {
+            if (!db.updateConsultationStatus(processedRecord.tokenNo, "In Consultation")) {
                 dsa.rollbackProcessing(processedRecord);
+                sendError(res, 500, "Failed to persist consultation status to database.");
+                return;
+            }
+        }
+
+        sendSuccess(res, registrationToJson(processedRecord), 200, "Patient called into consultation successfully");
+    });
+
+    server->Post(R"(/api/queues/(\d+)/complete)", [this](const httplib::Request& req, httplib::Response& res) {
+        int doctorId = stoi(req.matches[1]);
+        Doctor doc;
+        if (!dsa.findDoctorById(doctorId, doc)) {
+            sendError(res, 404, "Doctor ID " + to_string(doctorId) + " not found.");
+            return;
+        }
+
+        Registration completedRecord;
+        string err;
+        bool ok = dsa.completeConsultation(doctorId, completedRecord, err);
+        if (!ok) {
+            sendError(res, 400, err);
+            return;
+        }
+
+        if (db.isConnected()) {
+            if (!db.updateConsultationStatus(completedRecord.tokenNo, "Completed")) {
+                dsa.rollbackCompletion(completedRecord);
                 sendError(res, 500, "Failed to persist completed status to database.");
                 return;
             }
         }
 
-        sendSuccess(res, registrationToJson(processedRecord), 200, "Patient processed successfully");
+        sendSuccess(res, registrationToJson(completedRecord), 200, "Consultation completed successfully");
     });
 
     server->Get("/api/dashboard/stats", [this](const httplib::Request&, httplib::Response& res) {
@@ -453,6 +523,9 @@ void ApiServer::registerRoutes() {
             Registration np;
             bool hasNext = dsa.getNextPatient(d.doctorId, np);
 
+            Registration curPat;
+            bool hasCur = dsa.getCurrentConsultation(d.doctorId, curPat);
+
             json dSummary = {
                 {"doctorId", d.doctorId},
                 {"doctorName", d.name},
@@ -461,8 +534,14 @@ void ApiServer::registerRoutes() {
                 {"emergencyWaiting", emg},
                 {"normalWaiting", norm},
                 {"totalWaiting", total},
-                {"hasNextPatient", hasNext}
+                {"hasNextPatient", hasNext},
+                {"hasCurrentConsultation", hasCur}
             };
+            if (hasCur) {
+                dSummary["currentPatientToken"] = curPat.tokenNo;
+                dSummary["formattedCurrentToken"] = formatToken(curPat.tokenNo);
+                dSummary["currentPatientName"] = curPat.patientName;
+            }
             if (hasNext) {
                 dSummary["nextPatientToken"] = np.tokenNo;
                 dSummary["formattedNextToken"] = formatToken(np.tokenNo);
@@ -475,6 +554,8 @@ void ApiServer::registerRoutes() {
             {"totalWaiting", dsa.getTotalWaitingCount()},
             {"emergencyWaiting", dsa.getEmergencyWaitingCount()},
             {"normalWaiting", dsa.getNormalWaitingCount()},
+            {"inConsultation", dsa.getInConsultationCount()},
+            {"inConsultationCount", dsa.getInConsultationCount()},
             {"doctorCount", dsa.getDoctorCount()},
             {"patientCount", dsa.getPatientCount()},
             {"totalConsultations", dsa.getTotalConsultationCount()},

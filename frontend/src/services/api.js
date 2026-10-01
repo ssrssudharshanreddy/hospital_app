@@ -109,6 +109,10 @@ export const api = {
     request(`/queues/${doctorId}/process`, {
       method: 'POST',
     }),
+  completeConsultation: (doctorId) =>
+    request(`/queues/${doctorId}/complete`, {
+      method: 'POST',
+    }),
 
   // 6. Dashboard Metrics
   getDashboardStats: () => request('/dashboard/stats'),

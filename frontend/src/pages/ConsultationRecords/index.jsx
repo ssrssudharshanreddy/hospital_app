@@ -163,6 +163,7 @@ export default function ConsultationRecordsPage() {
           {[
             { label: 'All Records', value: '' },
             { label: 'Waiting', value: 'Waiting' },
+            { label: 'In Consultation', value: 'In Consultation' },
             { label: 'Completed', value: 'Completed' },
             { label: 'Cancelled', value: 'Cancelled' },
           ].map((tab) => {

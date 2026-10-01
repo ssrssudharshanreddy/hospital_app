@@ -36,7 +36,11 @@ static string getCurrentDate() {
     return oss.str();
 }
 
-HospitalDSA::HospitalDSA() : nextPatientId(101), nextTokenNumber(1), currentDate(getCurrentDate()) {}
+HospitalDSA::HospitalDSA() : nextPatientId(101), nextTokenNumber(1), currentDate(getCurrentDate()) {
+    for (int i = 0; i < MAX_DOCTORS; ++i) {
+        hasActiveConsultation[i] = false;
+    }
+}
 
 int HospitalDSA::getDoctorIndex(int doctorId) const {
     for (size_t i = 0; i < doctors.size(); ++i) {
@@ -172,10 +176,10 @@ bool HospitalDSA::bookConsultation(int patientId, int doctorId, const string& he
     Doctor doctor = doctors[dIdx];
 
     for (const auto& record : consultationHistory) {
-        if (record.patientId == patientId && record.status == "Waiting") {
+        if (record.patientId == patientId && (record.status == "Waiting" || record.status == "In Consultation" || record.status == "IN_CONSULTATION")) {
             errorMsg = "Patient #" + to_string(patientId) +
-                       " already has an active waiting consultation (Token #" +
-                       to_string(record.tokenNo) + ").";
+                       " already has an active consultation (Token #" +
+                       to_string(record.tokenNo) + ", Status: " + record.status + ").";
             return false;
         }
     }
@@ -232,6 +236,13 @@ bool HospitalDSA::processNextPatient(int doctorId, Registration& outProcessed, s
         return false;
     }
 
+    if (hasActiveConsultation[dIdx]) {
+        errorMsg = "Doctor " + doctors[dIdx].name + " is already consulting with Token #" +
+                   to_string(currentConsultations[dIdx].tokenNo) + " (" +
+                   currentConsultations[dIdx].patientName + "). Complete the consultation first.";
+        return false;
+    }
+
     bool dequeued = false;
 
     if (!emergencyQueues[dIdx].isEmpty()) {
@@ -248,17 +259,64 @@ bool HospitalDSA::processNextPatient(int doctorId, Registration& outProcessed, s
         return false;
     }
 
-    outProcessed.status = "Completed";
+    outProcessed.status = "In Consultation";
     outProcessed.updatedAt = getCurrentTimestamp();
 
     for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
         if (consultationHistory[i].tokenNo == outProcessed.tokenNo && consultationHistory[i].status == "Waiting") {
-            consultationHistory[i].status = "Completed";
+            consultationHistory[i].status = "In Consultation";
             consultationHistory[i].updatedAt = outProcessed.updatedAt;
             break;
         }
     }
 
+    currentConsultations[dIdx] = outProcessed;
+    hasActiveConsultation[dIdx] = true;
+
+    return true;
+}
+
+bool HospitalDSA::completeConsultation(int doctorId, Registration& outCompleted, string& errorMsg) {
+    int dIdx = getDoctorIndex(doctorId);
+    if (dIdx == -1) {
+        errorMsg = "Doctor ID #" + to_string(doctorId) + " not found.";
+        return false;
+    }
+
+    if (!hasActiveConsultation[dIdx]) {
+        errorMsg = "No active consultation currently in progress for Doctor #" + to_string(doctorId) + ".";
+        return false;
+    }
+
+    outCompleted = currentConsultations[dIdx];
+    outCompleted.status = "Completed";
+    outCompleted.updatedAt = getCurrentTimestamp();
+
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+        if (consultationHistory[i].tokenNo == outCompleted.tokenNo &&
+            (consultationHistory[i].status == "In Consultation" || consultationHistory[i].status == "IN_CONSULTATION")) {
+            consultationHistory[i].status = "Completed";
+            consultationHistory[i].updatedAt = outCompleted.updatedAt;
+            break;
+        }
+    }
+
+    hasActiveConsultation[dIdx] = false;
+    currentConsultations[dIdx] = Registration();
+
+    return true;
+}
+
+bool HospitalDSA::hasCurrentConsultation(int doctorId) const {
+    int dIdx = getDoctorIndex(doctorId);
+    if (dIdx == -1) return false;
+    return hasActiveConsultation[dIdx];
+}
+
+bool HospitalDSA::getCurrentConsultation(int doctorId, Registration& outReg) const {
+    int dIdx = getDoctorIndex(doctorId);
+    if (dIdx == -1 || !hasActiveConsultation[dIdx]) return false;
+    outReg = currentConsultations[dIdx];
     return true;
 }
 
@@ -306,7 +364,8 @@ bool HospitalDSA::cancelConsultation(int tokenNo, string& errorMsg) {
 
 bool HospitalDSA::findConsultationByToken(int tokenNo, Registration& outReg) const {
     for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
-        if (consultationHistory[i].tokenNo == tokenNo && consultationHistory[i].status == "Waiting") {
+        if (consultationHistory[i].tokenNo == tokenNo &&
+            (consultationHistory[i].status == "Waiting" || consultationHistory[i].status == "In Consultation" || consultationHistory[i].status == "IN_CONSULTATION")) {
             outReg = consultationHistory[i];
             return true;
         }
@@ -510,6 +569,16 @@ int HospitalDSA::getNormalWaitingCount() const {
     return total;
 }
 
+int HospitalDSA::getInConsultationCount() const {
+    int count = 0;
+    for (size_t i = 0; i < doctors.size() && i < MAX_DOCTORS; ++i) {
+        if (hasActiveConsultation[i]) {
+            count++;
+        }
+    }
+    return count;
+}
+
 int HospitalDSA::getCompletedCount() const {
     int count = 0;
     for (const auto& c : consultationHistory) {
@@ -674,11 +743,15 @@ bool HospitalDSA::rollbackCancellation(int tokenNo) {
 }
 
 bool HospitalDSA::rollbackProcessing(const Registration& reg) {
+    int dIdx = getDoctorIndex(reg.doctorId);
+    if (dIdx != -1) {
+        hasActiveConsultation[dIdx] = false;
+        currentConsultations[dIdx] = Registration();
+    }
     for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
         if (consultationHistory[i].tokenNo == reg.tokenNo) {
             consultationHistory[i].status = "Waiting";
             consultationHistory[i].updatedAt = reg.updatedAt;
-            int dIdx = getDoctorIndex(reg.doctorId);
             if (dIdx != -1) {
                 if (reg.emergency) {
                     emergencyQueues[dIdx].enqueueFront(consultationHistory[i]);
@@ -686,6 +759,23 @@ bool HospitalDSA::rollbackProcessing(const Registration& reg) {
                     normalQueues[dIdx].enqueueFront(consultationHistory[i]);
                 }
             }
+            return true;
+        }
+    }
+    return false;
+}
+
+bool HospitalDSA::rollbackCompletion(const Registration& reg) {
+    int dIdx = getDoctorIndex(reg.doctorId);
+    if (dIdx != -1) {
+        hasActiveConsultation[dIdx] = true;
+        currentConsultations[dIdx] = reg;
+        currentConsultations[dIdx].status = "In Consultation";
+    }
+    for (int i = static_cast<int>(consultationHistory.size()) - 1; i >= 0; --i) {
+        if (consultationHistory[i].tokenNo == reg.tokenNo) {
+            consultationHistory[i].status = "In Consultation";
+            consultationHistory[i].updatedAt = reg.updatedAt;
             return true;
         }
     }
@@ -727,6 +817,13 @@ void HospitalDSA::loadConsultation(const Registration& reg) {
                 normalQueues[dIdx].enqueue(reg);
             }
         }
+    } else if (reg.status == "In Consultation" || reg.status == "IN_CONSULTATION") {
+        int dIdx = getDoctorIndex(reg.doctorId);
+        if (dIdx != -1) {
+            currentConsultations[dIdx] = reg;
+            currentConsultations[dIdx].status = "In Consultation";
+            hasActiveConsultation[dIdx] = true;
+        }
     }
 }
 
@@ -740,5 +837,7 @@ void HospitalDSA::reset() {
     for (int i = 0; i < MAX_DOCTORS; ++i) {
         normalQueues[i].clear();
         emergencyQueues[i].clear();
+        hasActiveConsultation[i] = false;
+        currentConsultations[i] = Registration();
     }
 }

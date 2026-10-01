@@ -17,6 +17,11 @@ export default function Badge({ variant = 'default', children, size = 'md' }) {
       color: '#d97706',
       border: '1px solid #fde68a'
     },
+    inConsultation: {
+      backgroundColor: '#f5f3ff',
+      color: '#7c3aed',
+      border: '1px solid #ddd6fe'
+    },
     completed: {
       backgroundColor: '#f0fdf4',
       color: '#16a34a',

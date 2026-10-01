@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const totalWaiting = stats?.totalWaiting ?? status?.waitingConsultations ?? 0;
   const emergencyWaiting = stats?.emergencyWaiting ?? 0;
   const normalWaiting = stats?.normalWaiting ?? 0;
+  const inConsultation = stats?.inConsultation ?? stats?.inConsultationCount ?? 0;
   const doctorCount = stats?.doctorCount ?? status?.activeDoctors ?? 0;
   const patientCount = stats?.patientCount ?? status?.totalPatients ?? 0;
   const completedCount = stats?.completedConsultations ?? status?.completedConsultations ?? 0;
@@ -154,6 +155,21 @@ export default function DashboardPage() {
             <Badge variant="normal">FIFO</Badge>
           </div>
           <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>Processed FIFO order</p>
+        </Card>
+
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: '700', textTransform: 'uppercase' }}>
+                In Consultation
+              </p>
+              <h3 style={{ fontSize: '1.85rem', fontWeight: '700', color: '#7c3aed', marginTop: '0.25rem' }}>
+                {loading && !stats ? '...' : inConsultation}
+              </h3>
+            </div>
+            <Badge variant="inConsultation">Active</Badge>
+          </div>
+          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>Currently with doctors</p>
         </Card>
 
         <Card>
@@ -283,6 +299,14 @@ export default function DashboardPage() {
                   )}
                 </div>
 
+                {doc.hasCurrentConsultation && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#6b21a8', backgroundColor: '#faf5ff', padding: '0.35rem 0.6rem', borderRadius: '4px', border: '1px solid #e9d5ff' }}>
+                    <span style={{ fontWeight: '700' }}>In Room:</span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: '700' }}>Token {doc.formattedCurrentToken}</span>
+                    <span style={{ color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>({doc.currentPatientName})</span>
+                  </div>
+                )}
+
                 {doc.hasNextPatient ? (
                   <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '0.25rem' }}>
                     Next to call:{' '}
@@ -364,7 +388,7 @@ export default function DashboardPage() {
             <span style={{ fontSize: '0.75rem', color: '#64748b' }}>In-Memory Queue Engine</span>
             <div style={{ marginTop: '0.25rem' }}>
               <strong style={{ color: '#2563eb', fontFamily: 'monospace' }}>
-                std::map&lt;int, std::queue&gt;
+                Array-Based Circular Queue (FIFO)
               </strong>
             </div>
           </div>
