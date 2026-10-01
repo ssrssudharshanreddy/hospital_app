@@ -1,6 +1,6 @@
 # Hospital Patient Queue Management System
 
-A production-grade, full-stack clinical queue management system engineered with a high-performance **C++ DSA Queue Engine**, modern **React + Vite Frontend**, and persistent **MongoDB** document database.
+A full-stack clinical queue management system engineered with a high-performance **C++ Academic DSA Queue Engine**, modern **React + Vite Frontend**, and persistent **MongoDB Atlas** document database.
 
 ---
 
@@ -34,21 +34,23 @@ In busy outpatient clinics and hospitals, managing patient flow across multiple 
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   C++ REST API Server                       │
-│        (Thin HTTP JSON Layer / Crow / cpp-httplib)          │
+│              (Thin HTTP JSON Layer / ApiServer)             │
 └──────────────────────────────┬──────────────────────────────┘
                                │
                 ┌──────────────┴──────────────┐
                 ▼                             ▼
 ┌──────────────────────────────┐ ┌────────────────────────────┐
-│ C++ Core & In-Memory DSA     │ │ MongoDB Persistence Layer  │
-│ - PatientManager             │ │ (DatabaseManager)          │
-│ - DoctorManager              │ │ - Database:                │
-│ - TokenManager (Sequential)  │ │   hospital_queue_db        │
-│ - QueueManager:              │ │ - Collections:             │
-│   * emergencyQueues (map)    │ │   * patients               │
-│   * normalQueues (map)       │ │   * doctors                │
-│   * FIFO & Priority Pop      │ │   * consultations          │
-└──────────────────────────────┘ └────────────────────────────┘
+│ Academic DSA Layer           │ │ MongoDB Persistence Layer  │
+│ (HospitalDSA & PatientQueue) │ │ (DatabaseManager)          │
+│ - Fixed-array Circular Queue │ │ - Database:                │
+│ - front, rear, itemCount     │ │   hospital_queue_db        │
+│ - normalQueues[MAX_DOCTORS]  │ │ - Collections:             │
+│ - emergencyQueues[MAX_DOCS]  │ │   * patients               │
+│ - Linear Search (ID / Phone) │ │   * doctors                │
+│ - Structures:                │ │   * consultations          │
+│   Patient, Doctor,           │ └────────────────────────────┘
+│   Registration               │
+└──────────────────────────────┘
 ```
 > **Core Architectural Rule**: React communicates **only** with the C++ REST API. React **never** accesses MongoDB directly. The C++ backend is the sole authority for token generation, queue operations, and validation rules.
 
@@ -56,7 +58,7 @@ In busy outpatient clinics and hospitals, managing patient flow across multiple 
 
 ## 4. Key Features
 * **Patient Registration**: Minimal user entry (Name, Age, Gender, Phone); C++ auto-generates permanent Patient ID (`#101`, `#102`...).
-* **Patient Lookup**: Dual search by permanent Patient ID or 10-digit mobile number.
+* **Patient Lookup**: Dual search by permanent Patient ID or 10-digit mobile number using linear search.
 * **Patient Update**: Edit patient demographics while strictly preserving Patient ID immutability.
 * **Consultation Booking**: Read-only demographic context, manual doctor selection, emergency priority flag, and chief symptom description.
 * **Duplicate Consultation Prevention**: Guard against registering a second active waiting consultation for a patient (`HTTP 409 Conflict`).
@@ -70,51 +72,55 @@ In busy outpatient clinics and hospitals, managing patient flow across multiple 
 ---
 
 ## 5. Technologies Used
-* **Backend**: C++ (ISO C++17), MSVC v143, CMake 3.20+, ASIO, libmongocxx / mongocxx driver, cpp-httplib.
+* **Backend**: C++ (ISO C++17), MSVC v143, CMake 3.20+, cpp-httplib, nlohmann-json.
 * **Frontend**: React 18, Vite 5, React Router v7, Modern CSS.
-* **Database**: MongoDB Atlas (Cloud Cluster `hospital-queue.4i1oscg.mongodb.net`, database `hospital_queue_db`) with automatic fallback to local MongoDB (`mongodb://localhost:27017`).
-* **Testing & Automation**: Python 3.14 (`ctypes`, `urllib`), Windows Command Shell batch scripts, `mongosh`.
+* **Database**: MongoDB Atlas (Cloud Cluster `hospital-queue.4i1oscg.mongodb.net`, database `hospital_queue_db`) via `mongosh` CLI integration.
+* **Testing & Automation**: Python 3.10+, Windows Command Shell batch scripts, `mongosh`.
 
 ---
 
 ## 6. DSA Concepts & Implementations
 | DSA Concept | C++ Implementation | Purpose / Responsibility |
 |---|---|---|
-| **FIFO Queue** | `std::queue<QueueRegistration>` | Strict First-In-First-Out ordering of standard consultations. |
-| **Associative Array / Map** | `std::map<int, std::queue<QueueRegistration>>` | Doctor-specific queue isolation keyed by `doctorId`. |
-| **Priority Queue Logic** | Composite check: `!emergencyQueues[docId].empty()` | Prioritizes emergency consultations over normal queue. |
-| **Lookup Maps / Hash Tables** | `std::unordered_map<int, Patient>`, `std::unordered_map<std::string, int>` | $O(1)$ average-time lookup for Patient ID and Phone uniqueness. |
-| **Dynamic Arrays / Vectors** | `std::vector<Doctor>`, `std::vector<ConsultationRecord>` | Memory-contiguous storage for directory listings and audit history. |
-| **Strings & Formatting** | `std::string`, `std::ostringstream` | Sanitized inputs, token padding (`001`, `002`), and display formatting. |
+| **Circular Queue ADT** | `PatientQueue` (`data[MAX_QUEUE_SIZE]`, `front`, `rear`, `itemCount`) | Strict First-In-First-Out ordering with circular indexing modulo `MAX_QUEUE_SIZE`. |
+| **Multi-Queue Array** | `normalQueues[MAX_DOCTORS]`, `emergencyQueues[MAX_DOCTORS]` | Fixed-size array of queue ADTs guaranteeing doctor-specific queue isolation. |
+| **Triage Priority Logic** | Composite check: `!emergencyQueues[dIdx].isEmpty()` | Prioritizes emergency queue over normal queue before dispatching. |
+| **Linear Search** | `findPatientById`, `findPatientByPhone` ($O(n)$) | Predictable, syllabus-aligned linear scanning over structures. |
+| **Structures** | `struct Patient`, `struct Doctor`, `struct Registration` | Plain Data Structures grouping domain attributes. |
+| **Dynamic Arrays / Vectors** | `vector<Patient>`, `vector<Doctor>`, `vector<Registration>` | Storage for directory listings and complete consultation history. |
+| **Strings & Formatting** | `string`, `ostringstream` | Input validation, token formatting (`001`, `002`), and timestamp generation. |
 
 ---
 
-## 7. Core Locked Data Structures
+## 7. Core Data Structures
 ```cpp
-// Patient Structure (Single Name Field Locked)
 struct Patient {
     int patientId;
-    std::string patientName;
+    string name;
     int age;
-    std::string gender;
-    std::string phone;
+    string gender;
+    string phone;
 };
 
-// Doctor Structure
 struct Doctor {
     int doctorId;
-    std::string doctorName;
-    std::string specialization;
+    string name;
+    string specialization;
     int roomNo;
 };
 
-// Queue Registration Structure
-struct QueueRegistration {
+struct Registration {
     int tokenNo;
     int patientId;
-    std::string healthIssue;
+    string patientName;
     int doctorId;
+    string doctorName;
+    int roomNo;
+    string healthIssue;
     bool emergency;
+    string status;
+    string createdAt;
+    string updatedAt;
 };
 ```
 
@@ -134,9 +140,9 @@ struct QueueRegistration {
 2. Receptionist selects attending physician from directory, inputs chief symptoms, and sets priority toggle (Normal vs. Emergency).
 3. Form submits `POST /api/consultations`.
 4. C++ verifies patient has no existing `Waiting` consultation.
-5. C++ TokenManager issues common sequential token (`001`, `002`, etc.).
+5. C++ issues common sequential token (`001`, `002`, etc.).
 6. Consultation is stored in MongoDB `consultations` collection with status `"Waiting"`.
-7. Enqueued into `emergencyQueues[doctorId]` or `normalQueues[doctorId]`.
+7. Enqueued into `emergencyQueues[dIdx]` or `normalQueues[dIdx]`.
 8. React displays printable token receipt.
 
 ### 8.3 Doctor Queue Processing Workflow
@@ -147,7 +153,7 @@ struct QueueRegistration {
    - Else if normal queue is non-empty $\to$ front of normal queue.
 4. Doctor clicks *"Call & Complete Consultation"*.
 5. Frontend calls `POST /api/queues/:doctorId/process`.
-6. C++ pops the patient from the queue, marks the record as `"Completed"` in MongoDB, and returns the completed summary.
+6. C++ dequeues the patient from the queue, marks the record as `"Completed"` in MongoDB, and returns the completed summary.
 
 ### 8.4 Cancellation & Non-Reuse Workflow
 1. Staff searches consultation by token number at `/cancel-consultation`.
@@ -169,17 +175,17 @@ struct QueueRegistration {
 ## 9. MongoDB Database & Collections
 * **Database**: `hospital_queue_db`
 * **Collections**:
-  * `patients`: `{ patientId, patientName, age, gender, phone, createdAt }`
+  * `patients`: `{ patientId, patientName, age, gender, phone }`
   * `doctors`: `{ doctorId, doctorName, specialization, roomNo }`
-  * `consultations`: `{ tokenNo, patientId, doctorId, healthIssue, emergency, status, createdAt, completedAt, cancelledAt }`
+  * `consultations`: `{ tokenNo, patientId, patientName, doctorId, doctorName, roomNo, healthIssue, emergency, status, createdAt, updatedAt }`
 
 ### System Recovery Mechanism
-Upon backend startup, `SystemRecovery::recoverSystemState`:
+Upon backend startup:
 1. Re-indexes existing patients and sets `nextPatientId = max(patientId) + 1`.
 2. Loads all doctor directory entries.
 3. Loads all historical consultations.
 4. Rebuilds active in-memory `emergencyQueues` and `normalQueues` from all consultations with status `"Waiting"`, strictly preserving priority and FIFO order.
-5. Sets `nextTokenNo = max(tokenNo) + 1` so token generation resumes monotonically without collision.
+5. Sets `nextTokenNumber = max(tokenNo) + 1` so token generation resumes monotonically without collision.
 
 ---
 
@@ -189,19 +195,20 @@ Upon backend startup, `SystemRecovery::recoverSystemState`:
 | `/api/health` | GET | Liveness probe returning `{ status: "UP" }` | 503 |
 | `/api/status` | GET | System telemetry: doctor counts, active waiting, MongoDB status | — |
 | `/api/dashboard/stats` | GET | Live dashboard metrics (total, emergency, normal, per-doctor) | — |
-| `/api/patients` | POST | Register new patient (No Patient ID in payload) | 400, 409 |
+| `/api/patients` | POST | Register new patient (No Patient ID in payload) | 400, 409, 500 |
 | `/api/patients/:id` | GET | Retrieve patient profile by ID | 404 |
-| `/api/patients/search?phone=` | GET | Retrieve patient profile by 10-digit phone | 404 |
-| `/api/patients/:id` | PUT | Update demographics (Patient ID immutable) | 400, 404 |
+| `/api/patients/search?phone=` | GET | Retrieve patient profile by 10-digit phone | 400, 404 |
+| `/api/patients/:id` | PUT | Update demographics (Patient ID immutable) | 400, 404, 409, 500 |
 | `/api/doctors` | GET | List all active consulting physicians | — |
-| `/api/doctors` | POST | Register new physician | 400, 409 |
+| `/api/doctors` | POST | Register new physician | 400, 409, 500 |
 | `/api/doctors/:id` | GET | Retrieve physician details by ID | 404 |
-| `/api/consultations` | POST | Book consultation (Auto sequential token) | 400, 404, 409 |
+| `/api/consultations` | POST | Book consultation (Auto sequential token) | 400, 404, 409, 500 |
 | `/api/consultations` | GET | Search/filter consultations by status & doctor | — |
 | `/api/consultations/:token` | GET | Retrieve consultation record by token | 404 |
-| `/api/consultations/:token/cancel` | POST | Cancel waiting consultation (Token retired) | 400, 404 |
+| `/api/consultations/:token` | PUT | Update waiting consultation (Doctor, emergency, symptom) | 400, 404, 500 |
+| `/api/consultations/:token/cancel` | POST | Cancel waiting consultation (Token retired) | 400, 404, 500 |
 | `/api/queues/:doctorId` | GET | Inspect doctor's live emergency and normal queues | 404 |
-| `/api/queues/:doctorId/process` | POST | Pop and complete next patient by C++ priority | 400, 404 |
+| `/api/queues/:doctorId/process` | POST | Dequeue and complete next patient by C++ priority | 400, 404, 500 |
 
 ---
 
@@ -210,14 +217,14 @@ The system has been verified through a multi-tier automated test suite:
 
 | Phase / Suite | Scope & Description | Test Count | Status |
 |---|---|---|---|
-| **Phase 2** | C++ Core Structures & DSA Queue Engine | 10 / 10 | **PASSED** |
-| **Phase 3** | Patient Management & Centralized Token Engine | 18 / 18 | **PASSED** |
-| **Phase 4** | Doctor Management & Consultation Core | 17 / 17 | **PASSED** |
-| **Phase 5** | MongoDB Persistence & System Recovery | 35 / 35 | **PASSED** |
-| **Phase 6** | C++ REST API Endpoints & Routes | 36 / 36 | **PASSED** |
-| **Phase 8** | Frontend Workflow Integration | 32 / 32 | **PASSED** |
-| **Phase 9** | React $\leftrightarrow$ C++ $\leftrightarrow$ DSA $\leftrightarrow$ MongoDB E2E Suite | 74 / 74 | **PASSED** |
-| **Phase 10** | Full Realistic Workflow & System Recovery Suite | 33 / 33 | **PASSED** |
+| **DSA Queue Engine** | Circular Queue, FIFO, Priority, Edge Cases | 10 / 10 | **PASSED** |
+| **Patient Management** | Unique Phone, Linear Search, Age/Gender Bounds | 18 / 18 | **PASSED** |
+| **Doctor Management** | Multi-Doctor Isolation, Capacity Bounds | 17 / 17 | **PASSED** |
+| **MongoDB Persistence** | mongosh Operations, Crash Recovery | 35 / 35 | **PASSED** |
+| **C++ REST API** | Complete Route & Error Code Compliance | 36 / 36 | **PASSED** |
+| **Frontend Workflows** | Telemetry, Forms, Live Queues | 32 / 32 | **PASSED** |
+| **Full E2E Suite** | React $\leftrightarrow$ C++ $\leftrightarrow$ DSA $\leftrightarrow$ MongoDB | 74 / 74 | **PASSED** |
+| **Recovery & Consistency** | Rollbacks, Persistence Failures, Restart | 33 / 33 | **PASSED** |
 | **Frontend Build** | Vite Production Bundle & Lint Check | 74 modules | **PASSED** |
 | **TOTAL** | **Exhaustive Automated Verifications** | **255 / 255** | **100% PASSED** |
 

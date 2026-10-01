@@ -1,15 +1,11 @@
-#include "utils/logger.h"
-#include "db/db_config.h"
-#include "db/database_manager.h"
-#include "core/queue_manager.h"
-#include "core/patient_manager.h"
-#include "core/doctor_manager.h"
-#include "core/token_manager.h"
-#include "core/consultation_manager.h"
-#include "core/system_recovery.h"
-#include "api/server.h"
+#include "db_config.h"
+#include "database_manager.h"
+#include "hospital_dsa.h"
+#include "server.h"
+#include <iostream>
 #include <cstring>
 #include <cstdlib>
+using namespace std;
 
 #ifdef _WIN32
 #define EXPORT_API extern "C" __declspec(dllexport)
@@ -18,55 +14,77 @@
 #endif
 
 EXPORT_API int run_backend_server(int port = 8080) {
-    Logger::info("=======================================================");
-    Logger::info("  Hospital Patient Queue Management System - C++ Core  ");
-    Logger::info("=======================================================");
+    cout << "=======================================================" << endl;
+    cout << "  Hospital Patient Queue Management System - C++ Core  " << endl;
+    cout << "  Academic Data Structures & Algorithms Implementation " << endl;
+    cout << "=======================================================" << endl;
 
-    // 1. Load DB Configuration (zero hardcoded credentials)
     MongoConfig dbConfig;
     DatabaseManager dbManager;
     bool dbConnected = dbManager.initialize(dbConfig);
 
-    // 2. Initialize Core DSA and Manager Services
-    QueueManager queueManager;
-    PatientManager patientManager;
-    DoctorManager doctorManager;
-    TokenManager tokenManager;
-    ConsultationManager consultationManager(queueManager, patientManager, doctorManager, tokenManager);
+    HospitalDSA hospitalDSA;
 
     if (dbConnected) {
-        patientManager.setDatabaseManager(&dbManager);
-        doctorManager.setDatabaseManager(&dbManager);
-        consultationManager.setDatabaseManager(&dbManager);
+        cout << "[INFO] Recovering system state from MongoDB Atlas..." << endl;
 
-        std::string recoverySummary;
-        SystemRecovery::recoverSystemState(dbManager, patientManager, doctorManager,
-                                           tokenManager, queueManager, consultationManager,
-                                           recoverySummary);
-        Logger::info("Database connected & state recovered: " + recoverySummary);
-    } else {
-        Logger::warn("Running in in-memory mode (MongoDB not connected).");
-    }
-
-    // 3. Seed initial doctors if empty
-    if (doctorManager.getDoctorCount() == 0) {
-        doctorManager.seedInitialDoctors();
-        if (dbConnected) {
-            for (const auto& doc : doctorManager.getAllDoctors()) {
-                dbManager.saveDoctor(doc);
+        vector<Doctor> docs;
+        if (dbManager.loadAllDoctors(docs) && !docs.empty()) {
+            for (const auto& d : docs) {
+                hospitalDSA.loadDoctor(d);
             }
+            cout << "[INFO] Recovered " << docs.size() << " doctors." << endl;
         }
-        Logger::info("Seeded initial doctors into system.");
+
+        vector<Patient> pats;
+        if (dbManager.loadAllPatients(pats)) {
+            for (const auto& p : pats) {
+                hospitalDSA.loadPatient(p);
+            }
+            cout << "[INFO] Recovered " << pats.size() << " patients." << endl;
+        }
+
+        vector<Registration> consults;
+        if (dbManager.loadAllConsultations(consults)) {
+            for (const auto& c : consults) {
+                hospitalDSA.loadConsultation(c);
+            }
+            cout << "[INFO] Recovered " << consults.size() << " consultations ("
+                      << hospitalDSA.getTotalWaitingCount() << " active waiting in queues)." << endl;
+        }
+    } else {
+        cout << "[WARN] Running in in-memory mode (MongoDB not connected)." << endl;
     }
 
-    // 4. Start REST API Server on port
-    std::string host = "0.0.0.0";
-    ApiServer server(port, host, queueManager, patientManager, doctorManager,
-                      consultationManager, tokenManager, dbManager);
+    if (hospitalDSA.getDoctorCount() == 0) {
+        Doctor d1(1, "Dr. Sarah Johnson", "Cardiology", 101);
+        Doctor d2(2, "Dr. Michael Chen", "Orthopedics", 102);
+        Doctor d3(3, "Dr. Emily Rodriguez", "Pediatrics", 103);
+        Doctor d4(4, "Dr. James Wilson", "Neurology", 104);
+        Doctor d5(5, "Dr. Lisa Anderson", "General Medicine", 105);
 
-    Logger::info("Server ready at http://localhost:" + std::to_string(port));
+        hospitalDSA.addDoctor(d1);
+        hospitalDSA.addDoctor(d2);
+        hospitalDSA.addDoctor(d3);
+        hospitalDSA.addDoctor(d4);
+        hospitalDSA.addDoctor(d5);
+
+        if (dbConnected) {
+            dbManager.saveDoctor(d1);
+            dbManager.saveDoctor(d2);
+            dbManager.saveDoctor(d3);
+            dbManager.saveDoctor(d4);
+            dbManager.saveDoctor(d5);
+        }
+        cout << "[INFO] Seeded default 5 doctors into system." << endl;
+    }
+
+    string host = "0.0.0.0";
+    ApiServer server(port, host, hospitalDSA, dbManager);
+
+    cout << "[INFO] Server ready at http://localhost:" << port << endl;
     if (!server.start()) {
-        Logger::error("Failed to start server on port " + std::to_string(port));
+        cerr << "[ERROR] Failed to start server on port " << port << endl;
         return 1;
     }
 
@@ -76,11 +94,11 @@ EXPORT_API int run_backend_server(int port = 8080) {
 int main(int argc, char* argv[]) {
     int port = 8080;
     if (argc > 1) {
-        port = std::atoi(argv[1]);
+        port = atoi(argv[1]);
     } else {
-        const char* envPort = std::getenv("PORT");
-        if (envPort && std::strlen(envPort) > 0) {
-            int p = std::atoi(envPort);
+        const char* envPort = getenv("PORT");
+        if (envPort && strlen(envPort) > 0) {
+            int p = atoi(envPort);
             if (p > 0) {
                 port = p;
             }
